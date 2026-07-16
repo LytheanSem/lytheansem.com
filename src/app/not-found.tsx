@@ -3,7 +3,11 @@ import LeafMark from "@/components/ui/LeafMark";
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-ink-950 px-6 text-center">
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-ink-950 px-6 text-center">
+      {/* the one lost leaf, drifting down the empty field */}
+      <span aria-hidden className="leaf-lost pointer-events-none absolute left-[61%] top-0">
+        <LeafMark className="h-4 text-momiji-500/80" />
+      </span>
       <LeafMark className="h-14 rotate-[24deg] text-momiji-500" />
       <h1 className="mt-8 font-display text-5xl font-bold text-paper md:text-6xl">404</h1>
       <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-ink-200">

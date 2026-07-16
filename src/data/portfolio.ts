@@ -7,6 +7,7 @@ export type Project = {
   description: string;
   highlights: string[];
   tech: string[];
+  techGroups?: { label: string; items: string[] }[]; // labeled stacks (e.g. legacy vs rebuild) — overrides flat tech chips
   emblem: "shelf" | "stage" | "ripple" | "cipher" | "bars" | "disc" | "bowl" | "lanes";
   links?: { live?: string; github?: string };
   note?: string; // short closing caption for link-less panels
@@ -24,11 +25,15 @@ export const projects: Project[] = [
       "The retail suite behind VinMart, a supermarket in Phnom Penh — point of sale, barcode inventory, purchasing, and reporting. When the original team moved on, I became its sole engineer: keeping the live system shipping daily, and building its complete next-generation replacement from the ground up in parallel.",
     highlights: [
       "Sole engineer for a live multi-branch POS",
-      "Offline-first rebuild — a sale is never silently dropped",
       "Khmer-first bilingual, down to thermal-printer receipts",
       "Legacy data migration reconciled to the cent",
+      "Offline-first rebuild, staged for cutover — a sale is never silently dropped",
     ],
     tech: ["Laravel", "React", "Next.js", "Supabase", "Drizzle ORM", "PostgreSQL"],
+    techGroups: [
+      { label: "Legacy — live", items: ["Laravel", "React"] },
+      { label: "Rebuild — staged", items: ["Next.js", "Supabase", "Drizzle ORM", "PostgreSQL"] },
+    ],
     emblem: "shelf",
     note: "Private system — running daily at VinMart, Phnom Penh",
     fieldNote: "/notes/vinmart",
@@ -42,10 +47,10 @@ export const projects: Project[] = [
     description:
       "A production platform for Visual Emotionwork, a concert and event production company in Cambodia running since 2013. Customers browse the real equipment catalog, design their own stage in an interactive 3D editor, and book consultations that auto-create Zoom meetings, send confirmations, and log to the company's operations sheets. Built with a three-person university team — and still live on the client's domain today.",
     highlights: [
+      "Still live on the client's domain today",
       "In-browser 3D stage designer — drag-and-drop equipment, templates, PNG/PDF export",
       "Bookings wire together the Zoom API, email confirmations, and Google Sheets",
       "Type-safe tRPC API over MongoDB Atlas with role-based access control",
-      "144 commits through 41 pull requests over six months",
     ],
     tech: ["Next.js 15", "tRPC", "MongoDB", "Three.js / R3F", "NextAuth", "Cloudinary", "Zoom API"],
     emblem: "stage",
@@ -69,6 +74,7 @@ export const projects: Project[] = [
     ],
     tech: ["Next.js 16", "React 19", "Prisma", "PostgreSQL", "NextAuth v5", "Tailwind v4"],
     emblem: "ripple",
+    note: "Personal build — archived, no public release",
   },
   {
     id: "encrypted-images",
@@ -82,10 +88,11 @@ export const projects: Project[] = [
       "Client-side AES-256-GCM — zero-knowledge server",
       "scrypt key derivation, @noble cryptography",
       "Role hierarchy: owner, admin, employee",
-      "English + Khmer, deployed on Vercel",
+      "English + Khmer, end to end",
     ],
     tech: ["Next.js 15", "Supabase", "@noble/ciphers", "Edge Functions", "Zod", "next-intl"],
     emblem: "cipher",
+    note: "Built for a government workflow — shelved, deployment uncertain",
   },
   {
     id: "kh-track",
@@ -102,6 +109,7 @@ export const projects: Project[] = [
     ],
     tech: ["Next.js 16", "React 19", "Supabase", "Tailwind v4", "PWA"],
     emblem: "bars",
+    note: "Personal build — archived, no public release",
   },
   {
     id: "drift",
@@ -118,6 +126,7 @@ export const projects: Project[] = [
     ],
     tech: ["React", "Vite", "TypeScript", "shadcn/ui", "TanStack Query"],
     emblem: "disc",
+    note: "Personal build — archived, no public release",
   },
   {
     id: "eleven-one",
@@ -134,6 +143,7 @@ export const projects: Project[] = [
     ],
     tech: ["Next.js 16", "Tailwind v4", "TypeScript", "qrcode.react"],
     emblem: "bowl",
+    note: "Built for a real Phnom Penh restaurant — archived, never shipped",
   },
   {
     id: "lanedash",
@@ -144,10 +154,10 @@ export const projects: Project[] = [
     description:
       "A motion-controlled 3D endless runner, built as my senior capstone with a three-person team. Your webcam is the controller: OpenCV and MediaPipe track your body — jump, crouch, lean to switch lanes — and stream every move to the Unity game over UDP in real time. A MET-based calorie system turns the run into a workout, personalized to your height and weight.",
     highlights: [
+      "97% of user-testing players said they'd play again",
       "Python pose detection driving Unity gameplay over UDP — no sensors, no headset",
       "Jump, crouch, and lean detection with live calibration overlays",
       "MET-based calorie tracking personalized per player",
-      "97% of user-testing players said they'd play again",
     ],
     tech: ["Unity", "C#", "Python", "OpenCV", "MediaPipe", "UDP"],
     emblem: "lanes",
@@ -219,5 +229,6 @@ export const site = {
   location: "Phnom Penh, Cambodia",
   email: "hi@lytheansem.com",
   github: "https://github.com/LytheanSem",
+  linkedin: "https://www.linkedin.com/in/lytheansem",
   domain: "lytheansem.com",
 };

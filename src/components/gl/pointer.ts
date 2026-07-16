@@ -6,8 +6,14 @@ export const pointer = {
   gustX: 0, // world-x origin of the gust — the wind starts where you touch
   meteorAt: -10000, // ms timestamp of a summoned shooting star (easter egg)
   cloudForce: false, // ?cloud=1 preview flag
+  glintForce: false, // ?glint=1 preview flag — katana glint placement tuning
+  birdsForce: false, // ?birds=1 preview flag — force the distant flock
   motion: 1, // scaled down when prefers-reduced-motion
   heroVisible: true, // hero View on screen — gates the main scene's CPU work
+  footerVisible: false, // footer field View on screen — gates its CPU work
+  // still-cursor tracking (the leaf that finds a still cursor):
+  stillSince: Infinity, // ms timestamp when the cursor last came to rest
+  stillEligible: false, // true only for a fine pointer resting over open field
 };
 
 /** How fast the gust front travels across the field, world units / second. */

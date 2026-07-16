@@ -32,8 +32,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://lytheansem.com"),
   title: "Lythean Sem — Full-Stack Engineer in Phnom Penh",
   description:
-    "Zen — full-stack engineer in Phnom Penh, Cambodia. I build calm, dependable software for real businesses: retail systems, SaaS platforms, and encrypted tools.",
-  alternates: { canonical: "/" },
+    "Lythean Sem (Zen) — full-stack engineer in Phnom Penh, Cambodia. Calm, dependable software for real businesses: retail systems, SaaS platforms, and encrypted tools.",
   openGraph: {
     title: "Lythean Sem — Full-Stack Engineer",
     description:
@@ -58,7 +57,7 @@ const personJsonLd = {
   jobTitle: site.role,
   email: `mailto:${site.email}`,
   url: `https://${site.domain}`,
-  sameAs: [site.github],
+  sameAs: [site.github, site.linkedin],
   address: {
     "@type": "PostalAddress",
     addressLocality: "Phnom Penh",

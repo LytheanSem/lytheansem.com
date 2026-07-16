@@ -29,7 +29,7 @@ export default function About() {
                 when the stakes demand it, and fast everywhere — because in the real world,
                 nobody waits for a spinner.
               </p>
-              <p className="pt-4 font-display text-xl italic text-momiji-300/90">— Zen</p>
+              <p className="pt-4 font-display text-xl text-momiji-300/90">— Zen</p>
             </div>
           </Reveal>
 

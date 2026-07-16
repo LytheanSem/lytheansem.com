@@ -12,7 +12,10 @@ function ProjectPanel({ project, flip }: { project: Project; flip: boolean }) {
   const Emblem = emblemMap[project.emblem];
 
   return (
-    <article className="grid items-center gap-10 py-16 first:pt-6 md:py-24 md:first:pt-8 lg:grid-cols-2 lg:gap-16">
+    <article
+      id={project.id}
+      className="grid scroll-mt-24 items-center gap-10 py-16 first:pt-6 md:py-24 md:first:pt-8 lg:grid-cols-2 lg:gap-16"
+    >
       {/* emblem — drag to turn, hover to ignite */}
       <Reveal className={flip ? "lg:order-2" : ""}>
         <div className="group relative">
@@ -34,8 +37,8 @@ function ProjectPanel({ project, flip }: { project: Project; flip: boolean }) {
             {project.index}
           </span>
           <span className="pointer-events-none absolute left-5 top-4 font-mono text-[10px] uppercase tracking-[0.3em] text-ink-300/80">
-            <span className="pointer-coarse:hidden">drag · hover</span>
-            <span className="hidden pointer-coarse:inline">drag to rotate</span>
+            <span className="pointer-coarse:hidden">drag · hover · tap</span>
+            <span className="hidden pointer-coarse:inline">drag · tap</span>
           </span>
         </div>
       </Reveal>
@@ -48,10 +51,10 @@ function ProjectPanel({ project, flip }: { project: Project; flip: boolean }) {
             {project.category}
           </span>
         </div>
-        <h3 className="mt-4 font-display text-4xl font-bold text-paper md:text-5xl">
+        <h3 className="mt-4 font-display text-4xl font-bold text-paper">
           {project.name}
         </h3>
-        <p className="mt-3 font-display text-lg italic text-momiji-300/90">{project.tagline}</p>
+        <p className="mt-3 font-display text-lg text-momiji-300/90">{project.tagline}</p>
         <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-ink-200">
           {project.description}
         </p>
@@ -65,16 +68,36 @@ function ProjectPanel({ project, flip }: { project: Project; flip: boolean }) {
             </li>
           ))}
         </ul>
-        <div className="mt-7 flex flex-wrap gap-2">
-          {project.tech.map((t) => (
-            <span
-              key={t}
-              className="border border-ink-700 px-3 py-1 font-mono text-[11px] text-ink-300 transition-colors hover:border-momiji-600 hover:text-momiji-300"
-            >
-              {t}
-            </span>
-          ))}
-        </div>
+        {project.techGroups ? (
+          <div className="mt-7 space-y-3">
+            {project.techGroups.map((g) => (
+              <div key={g.label} className="flex flex-wrap items-center gap-2">
+                <span className="mr-1 font-mono text-[10px] uppercase tracking-[0.25em] text-ink-300">
+                  {g.label}
+                </span>
+                {g.items.map((t) => (
+                  <span
+                    key={t}
+                    className="border border-ink-700 px-3 py-1 font-mono text-[11px] text-ink-300 transition-colors hover:border-momiji-600 hover:text-momiji-300"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-7 flex flex-wrap gap-2">
+            {project.tech.map((t) => (
+              <span
+                key={t}
+                className="border border-ink-700 px-3 py-1 font-mono text-[11px] text-ink-300 transition-colors hover:border-momiji-600 hover:text-momiji-300"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
         {project.note && (
           <p className="mt-8 flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.25em] text-momiji-300/90">
             <LeafMark className="h-3.5 rotate-[24deg]" />
@@ -130,7 +153,31 @@ export default function Projects() {
   return (
     <section id="works" className="relative z-10 scroll-mt-20">
       <div className="mx-auto max-w-6xl px-6 pt-28">
-        <SectionHeading en="Selected Works" sub="eight systems in the wild" />
+        <SectionHeading en="Selected Works" sub="eight systems, and where each one stands" />
+
+        {/* index — one line per system, for the reader in a hurry */}
+        <Reveal className="mb-14">
+          <nav aria-label="Jump to a project" className="grid gap-x-12 sm:grid-cols-2">
+            {projects.map((p) => (
+              <a
+                key={p.id}
+                href={`#${p.id}`}
+                className="group/idx flex items-baseline gap-3 border-b border-ink-800/60 py-2.5 font-mono text-[11px] uppercase tracking-[0.2em]"
+              >
+                <span className="font-display text-xs font-bold text-momiji-500">
+                  {p.index}
+                </span>
+                <span className="text-paper/90 transition-colors group-hover/idx:text-momiji-300">
+                  {p.name}
+                </span>
+                <span className="ml-auto hidden text-right text-[10px] text-ink-300 sm:block">
+                  {p.category}
+                </span>
+              </a>
+            ))}
+          </nav>
+        </Reveal>
+
         <div className="divide-y divide-ink-800/60">
           {projects.map((p, i) => (
             <ProjectPanel key={p.id} project={p} flip={i % 2 === 1} />

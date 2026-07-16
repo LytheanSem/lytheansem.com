@@ -23,7 +23,23 @@ export type EmblemCtl = {
   targetRy: number;
   dragging: boolean;
   visible: boolean; // wrapper on screen — gates all per-frame work
+  pulseAt: number; // ms timestamp of the last tap — each emblem answers in its own voice
 };
+
+/**
+ * 0..1 one-shot strength of the current tap pulse — the same smooth
+ * attack/decay curve as the hero gust (t·e^(1−t)): peaks at ~900ms, then
+ * decays over ~4.5s. Purely additive on top of each emblem's idle animation:
+ * base tempos never change.
+ */
+export function pulseStrength(ctl: EmblemCtl) {
+  const t = (performance.now() - ctl.pulseAt) / 900;
+  if (t <= 0 || t >= 5) return 0;
+  // the curve still holds ~9% at the cutoff — fade the tail to exactly zero
+  // over the last stretch so consumers never see a last-frame snap
+  const fade = t < 4 ? 1 : 5 - t;
+  return t * Math.exp(1 - t) * fade;
+}
 
 const EmblemContext = createContext<EmblemCtl | null>(null);
 export const useEmblem = () => {
@@ -119,10 +135,13 @@ export default function EmblemView({
       targetRy: autoRotate ? 0.5 : 0,
       dragging: false,
       visible: false,
+      pulseAt: -10000,
     }),
     [autoRotate]
   );
   const last = useRef({ x: 0, y: 0 });
+  const origin = useRef({ x: 0, y: 0 });
+  const travel = useRef(0); // peak distance from the press origin — staying near it is a tap
 
   useEffect(() => {
     const el = wrapper.current;
@@ -138,12 +157,21 @@ export default function EmblemView({
   }, [ctl]);
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    // primary pointer, main button only — a second finger or a right/middle
+    // click must not reset the tap state of a drag in progress
+    if (!e.isPrimary || e.button > 0) return;
     ctl.dragging = true;
+    travel.current = 0;
+    origin.current = { x: e.clientX, y: e.clientY };
     last.current = { x: e.clientX, y: e.clientY };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!ctl.dragging) return;
+    if (!ctl.dragging || !e.isPrimary) return;
+    travel.current = Math.max(
+      travel.current,
+      Math.hypot(e.clientX - origin.current.x, e.clientY - origin.current.y)
+    );
     ctl.targetRy += (e.clientX - last.current.x) * 0.008;
     ctl.targetRx = THREE.MathUtils.clamp(
       ctl.targetRx + (e.clientY - last.current.y) * 0.006,
@@ -153,6 +181,14 @@ export default function EmblemView({
     last.current = { x: e.clientX, y: e.clientY };
   };
   const endDrag = () => (ctl.dragging = false);
+  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary) return;
+    // a press that stayed near its origin is a tap — the emblem answers with
+    // its pulse (fingers wobble more than mice, so touch gets more slop)
+    const slop = e.pointerType === "mouse" ? 6 : 10;
+    if (ctl.dragging && travel.current < slop) ctl.pulseAt = performance.now();
+    endDrag();
+  };
 
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     const step = 0.35;
@@ -162,6 +198,7 @@ export default function EmblemView({
       ctl.targetRx = THREE.MathUtils.clamp(ctl.targetRx - 0.2, -0.6, 0.6);
     else if (e.key === "ArrowDown")
       ctl.targetRx = THREE.MathUtils.clamp(ctl.targetRx + 0.2, -0.6, 0.6);
+    else if (e.key === "Enter" || e.key === " ") ctl.pulseAt = performance.now();
     else return;
     e.preventDefault();
   };
@@ -171,7 +208,7 @@ export default function EmblemView({
       ref={wrapper}
       role="img"
       tabIndex={0}
-      aria-label={`${label}. Use arrow keys to rotate.`}
+      aria-label={`${label}. Arrow keys rotate; Enter or Space pulses.`}
       className={`relative cursor-grab touch-pan-y select-none active:cursor-grabbing ${className}`}
       onPointerEnter={() => (ctl.hoverTarget = 1)}
       onPointerLeave={() => {
@@ -183,7 +220,7 @@ export default function EmblemView({
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
+      onPointerUp={onPointerUp}
       onPointerCancel={endDrag}
     >
       {ready && (

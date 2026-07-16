@@ -12,7 +12,7 @@ import {
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { PerspectiveCamera, useGLTF, useAnimations } from "@react-three/drei";
-import { pointer, gustStrength, gustAtX, gustLive, cloudCover } from "./pointer";
+import { pointer, gustAtX, gustLive, cloudCover } from "./pointer";
 
 /* ---------------------------------- utils --------------------------------- */
 
@@ -20,13 +20,13 @@ const leafStops = ["#6f2013", "#a53318", "#c2431f", "#e8622c", "#ef7a37", "#ff9c
   (c) => new THREE.Color(c)
 );
 
-function leafColor(t: number, out: THREE.Color) {
+export function leafColor(t: number, out: THREE.Color) {
   const f = THREE.MathUtils.clamp(t, 0, 0.999) * (leafStops.length - 1);
   const i = Math.floor(f);
   return out.copy(leafStops[i]).lerp(leafStops[i + 1], f - i);
 }
 
-function makeRadialTexture() {
+export function makeRadialTexture() {
   const size = 128;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
@@ -41,7 +41,7 @@ function makeRadialTexture() {
   return tex;
 }
 
-function makeVerticalGradientTexture() {
+export function makeVerticalGradientTexture() {
   const canvas = document.createElement("canvas");
   canvas.width = 2;
   canvas.height = 128;
@@ -56,7 +56,7 @@ function makeVerticalGradientTexture() {
 }
 
 /** Pointed momiji-leaf silhouette — shared by canopy and falling leaves. */
-function makeLeafGeometry() {
+export function makeLeafGeometry() {
   const s = new THREE.Shape();
   s.moveTo(0, -0.1);
   s.quadraticCurveTo(0.075, -0.02, 0.015, 0.1);
@@ -82,6 +82,8 @@ const skyFragment = /* glsl */ `
   uniform float uPhase;      // tonight's real lunar phase, 0 = new, 0.5 = full
   uniform float uCloud;      // 0..1 cloud-over-the-moon (scheduled in JS)
   uniform float uMeteorStart; // clock time of a summoned meteor, or -100
+  uniform float uMoonY;      // moon height — rides lower for deep-night visitors
+  uniform float uStarDensity; // star threshold — the small hours show more stars
   varying vec2 vUv;
 
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
@@ -123,7 +125,7 @@ const skyFragment = /* glsl */ `
     // the moon — tonight's REAL phase: a proper terminator from uPhase,
     // clamped so even a new moon stays legible in the composition
     float breathe = 1.0 + 0.02 * sin(uTime * 0.25);
-    vec2 d = (uv - vec2(0.56, 0.63)) * vec2(70.0 / 30.0, 1.0);
+    vec2 d = (uv - vec2(0.56, uMoonY)) * vec2(70.0 / 30.0, 1.0);
     float dist = length(d);
     float disc = 1.0 - smoothstep(0.040, 0.0445, dist);
     vec3 moonCol = vec3(0.84, 0.89, 0.97);
@@ -160,7 +162,7 @@ const skyFragment = /* glsl */ `
     // sparse twinkling stars — high sky only, hushed near the moon's halo
     vec2 starGrid = uv * vec2(140.0, 60.0);
     float seed = hash(floor(starGrid));
-    float isStar = smoothstep(0.9965, 1.0, seed);
+    float isStar = smoothstep(uStarDensity, 1.0, seed);
     float point = smoothstep(0.3, 0.0, length(fract(starGrid) - 0.5));
     float twinkle = 0.55 + 0.45 * sin(uTime * (0.8 + seed * 2.5) + seed * 43.0);
     col += vec3(0.72, 0.8, 0.95) * isStar * point * twinkle * 0.5
@@ -180,25 +182,32 @@ const skyFragment = /* glsl */ `
 `;
 
 /** Tonight's lunar phase: 0 = new, 0.5 = full (synodic month from a known new moon). */
-function lunarPhase() {
+export function lunarPhase() {
   const SYNODIC = 29.530588853;
   const KNOWN_NEW = Date.UTC(2000, 0, 6, 18, 14) / 86400000;
   const days = Date.now() / 86400000 - KNOWN_NEW;
   return ((days % SYNODIC) + SYNODIC) % SYNODIC / SYNODIC;
 }
 
+/** True in the small hours (local 00:00–03:59) — the site quietly knows. */
+export const isDeepNight = () => new Date().getHours() < 4;
+
 function Sky() {
   const mat = useRef<THREE.ShaderMaterial>(null!);
   const meteorLatch = useRef(-10000);
-  const uniforms = useMemo(
-    () => ({
+  const uniforms = useMemo(() => {
+    // visitors browsing in the small hours get a truer small-hours sky:
+    // more stars, the moon riding lower — nobody is told, the site just knows
+    const deep = isDeepNight();
+    return {
       uTime: { value: 0 },
       uPhase: { value: lunarPhase() },
       uCloud: { value: 0 },
       uMeteorStart: { value: -100 },
-    }),
-    []
-  );
+      uMoonY: { value: deep ? 0.585 : 0.63 },
+      uStarDensity: { value: deep ? 0.9935 : 0.9965 },
+    };
+  }, []);
   useFrame((state) => {
     const u = mat.current.uniforms;
     u.uTime.value = state.clock.elapsedTime;
@@ -341,9 +350,12 @@ function Grass() {
   const n = mobile ? 190 : 380;
   return (
     <>
+      <GrassBand count={Math.floor(n * 0.7)} z={0.5} phase={5.6} />
       <GrassBand count={n} z={1.6} phase={0} />
       <GrassBand count={n} z={2.8} phase={2.1} />
       <GrassBand count={Math.floor(n * 0.85)} z={3.9} phase={4.2} />
+      {/* foreground fringe — nearest the camera, framing the field's edge */}
+      <GrassBand count={Math.floor(n * 0.55)} z={4.9} phase={1.3} />
     </>
   );
 }
@@ -448,6 +460,223 @@ function MapleTree() {
   );
 }
 
+/**
+ * A far-off maple silhouette — same canopy recipe as the hero tree, but
+ * smaller, dimmer, and colors sunk toward the night air so it reads as
+ * depth, not competition.
+ */
+function DistantTree({
+  position,
+  scale = 0.55,
+  dim = 0.55,
+  swayPhase = 0,
+}: {
+  position: [number, number, number];
+  scale?: number;
+  dim?: number;
+  swayPhase?: number;
+}) {
+  const mobile = useMemo(isMobile, []);
+  const count = mobile ? 130 : 260;
+  const canopy = useRef<THREE.Group>(null!);
+  const geometry = useMemo(makeLeafGeometry, []);
+
+  const { matrices, colors } = useMemo(() => {
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
+    const night = new THREE.Color("#101b2d");
+    const matrices: THREE.Matrix4[] = [];
+    const colors: THREE.Color[] = [];
+    const totalR = CANOPY_BLOBS.reduce((s, b) => s + b.r ** 3, 0);
+    for (let i = 0; i < count; i++) {
+      let pick = Math.random() * totalR;
+      let blob = CANOPY_BLOBS[0];
+      for (const b of CANOPY_BLOBS) {
+        pick -= b.r ** 3;
+        if (pick <= 0) {
+          blob = b;
+          break;
+        }
+      }
+      const dir = new THREE.Vector3(
+        Math.random() * 2 - 1,
+        (Math.random() * 2 - 1) * 0.72,
+        Math.random() * 2 - 1
+      ).normalize();
+      const rad = blob.r * Math.cbrt(Math.random());
+      dummy.position.set(
+        blob.c[0] + dir.x * rad,
+        blob.c[1] + dir.y * rad * 0.75,
+        blob.c[2] + dir.z * rad * 0.6
+      );
+      dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      const s = 1.1 + Math.random() * 1.1; // fewer, larger leaves — reads as mass at distance
+      dummy.scale.set(s, s, s);
+      dummy.updateMatrix();
+      matrices.push(dummy.matrix.clone());
+      leafColor(Math.random(), color);
+      color.lerp(night, dim);
+      colors.push(color.clone());
+    }
+    return { matrices, colors };
+  }, [count, dim]);
+
+  useFrame((state) => {
+    if (!pointer.heroVisible) return;
+    // same idle-only sway law as the hero tree — never answers the gust
+    canopy.current.rotation.z =
+      Math.sin(state.clock.elapsedTime * 0.4 + swayPhase) * 0.01 * pointer.motion;
+  });
+
+  return (
+    <group position={position} scale={scale}>
+      <mesh position={[0, 1.3, 0]} rotation-z={0.12}>
+        <cylinderGeometry args={[0.07, 0.2, 2.7, 7]} />
+        <meshBasicMaterial color="#070b12" />
+      </mesh>
+      <mesh position={[0.6, 2.5, 0]} rotation-z={-0.85}>
+        <cylinderGeometry args={[0.035, 0.07, 1.6, 6]} />
+        <meshBasicMaterial color="#070b12" />
+      </mesh>
+      <group ref={canopy}>
+        <instancedMesh
+          ref={(m) => {
+            if (!m || m.userData.done) return;
+            matrices.forEach((mat, i) => m.setMatrixAt(i, mat));
+            colors.forEach((c, i) => m.setColorAt(i, c));
+            m.instanceMatrix.needsUpdate = true;
+            if (m.instanceColor) m.instanceColor.needsUpdate = true;
+            m.userData.done = true;
+          }}
+          args={[geometry, undefined, count]}
+        >
+          <meshBasicMaterial side={THREE.DoubleSide} />
+        </instancedMesh>
+      </group>
+    </group>
+  );
+}
+
+/**
+ * Fallen leaves resting on the field — the quiet evidence of every night the
+ * wind has already had. Static instances, one draw call: concentrated under
+ * the maple and thinning downwind across the field.
+ */
+function LeafLitter() {
+  const mobile = useMemo(isMobile, []);
+  const count = mobile ? 70 : 150;
+  const geometry = useMemo(makeLeafGeometry, []);
+
+  const { matrices, colors } = useMemo(() => {
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
+    const ground = new THREE.Color("#0d1422");
+    const matrices: THREE.Matrix4[] = [];
+    const colors: THREE.Color[] = [];
+    for (let i = 0; i < count; i++) {
+      // drift downwind (+x) from the tree at x=-4.1, thinning with distance
+      const spread = -Math.log(1 - Math.random()) * 4.5; // exponential tail
+      const x = -5.5 + Math.random() * 3 + spread;
+      const z = -5 + Math.random() * 8;
+      dummy.position.set(x, -1.19 + Math.random() * 0.008, z);
+      // flat on the ground, each at its own angle, a few slightly cocked
+      dummy.rotation.set(
+        -Math.PI / 2 + (Math.random() - 0.5) * 0.4,
+        0,
+        Math.random() * Math.PI * 2
+      );
+      const s = 0.45 + Math.random() * 0.5;
+      dummy.scale.set(s, s, s);
+      dummy.updateMatrix();
+      matrices.push(dummy.matrix.clone());
+      // fallen leaves are duller than flying ones — sunk toward the ink
+      leafColor(Math.random(), color);
+      color.lerp(ground, 0.45 + Math.random() * 0.25);
+      colors.push(color.clone());
+    }
+    return { matrices, colors };
+  }, [count]);
+
+  return (
+    <instancedMesh
+      ref={(m) => {
+        if (!m || m.userData.done) return;
+        matrices.forEach((mat, i) => m.setMatrixAt(i, mat));
+        colors.forEach((c, i) => m.setColorAt(i, c));
+        m.instanceMatrix.needsUpdate = true;
+        if (m.instanceColor) m.instanceColor.needsUpdate = true;
+        m.userData.done = true;
+      }}
+      args={[geometry, undefined, count]}
+    >
+      <meshBasicMaterial side={THREE.DoubleSide} />
+    </instancedMesh>
+  );
+}
+
+/**
+ * A low shrub — a small flattened clump of the same momiji leaves, no trunk,
+ * sitting between the grass and the horizon. Static; the grass around it
+ * carries the movement.
+ */
+function Shrub({
+  position,
+  r = 0.7,
+  dim = 0.45,
+}: {
+  position: [number, number, number];
+  r?: number;
+  dim?: number;
+}) {
+  const mobile = useMemo(isMobile, []);
+  const count = mobile ? 34 : 64;
+  const geometry = useMemo(makeLeafGeometry, []);
+
+  const { matrices, colors } = useMemo(() => {
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
+    const night = new THREE.Color("#101b2d");
+    const matrices: THREE.Matrix4[] = [];
+    const colors: THREE.Color[] = [];
+    for (let i = 0; i < count; i++) {
+      const dir = new THREE.Vector3(
+        Math.random() * 2 - 1,
+        Math.random() * 0.9,
+        Math.random() * 2 - 1
+      ).normalize();
+      const rad = r * Math.cbrt(Math.random());
+      dummy.position.set(dir.x * rad, Math.abs(dir.y) * rad * 0.55, dir.z * rad * 0.8);
+      dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      const s = 0.9 + Math.random() * 0.8;
+      dummy.scale.set(s, s, s);
+      dummy.updateMatrix();
+      matrices.push(dummy.matrix.clone());
+      leafColor(Math.random(), color);
+      color.lerp(night, dim);
+      colors.push(color.clone());
+    }
+    return { matrices, colors };
+  }, [count, r, dim]);
+
+  return (
+    <group position={position}>
+      <instancedMesh
+        ref={(m) => {
+          if (!m || m.userData.done) return;
+          matrices.forEach((mat, i) => m.setMatrixAt(i, mat));
+          colors.forEach((c, i) => m.setColorAt(i, c));
+          m.instanceMatrix.needsUpdate = true;
+          if (m.instanceColor) m.instanceColor.needsUpdate = true;
+          m.userData.done = true;
+        }}
+        args={[geometry, undefined, count]}
+      >
+        <meshBasicMaterial side={THREE.DoubleSide} />
+      </instancedMesh>
+    </group>
+  );
+}
+
 /* ------------------------------ falling leaves ----------------------------- */
 
 type LeafState = {
@@ -503,6 +732,11 @@ function FallingLeaves() {
     return leaves.map(() => leafColor(0.35 + Math.random() * 0.65, color).clone());
   }, [leaves]);
 
+  // the leaf that finds a still cursor: after ~5s of true stillness over the
+  // open field, the nearest falling leaf drifts over — never faster than its
+  // own fall pace — rests, rocks, and releases at the first sign of movement
+  const still = useRef({ idx: -1, gustAt: -1e9, resting: false, restRz: 0 });
+
   useFrame((state, dt) => {
     if (!pointer.heroVisible) return;
     const d = Math.min(dt, 0.05) * pointer.motion;
@@ -510,21 +744,82 @@ function FallingLeaves() {
     const live = gustLive();
     const baseWind = 0.38 + pointer.x * 0.55;
 
+    const s = still.current;
+    const now = performance.now();
+    const stillFor = now - pointer.stillSince;
+    const eligible = pointer.stillEligible && pointer.motion === 1;
+    // release: the cursor moved, became ineligible, or the visitor stirred
+    // the wind — the leaf returns to the sky's ordinary physics mid-air
+    if (s.idx >= 0 && (!eligible || stillFor < 4800 || pointer.gustAt !== s.gustAt)) {
+      s.idx = -1;
+      s.resting = false;
+    }
+    // cursor world position, same mapping the gust uses for x
+    const tx = THREE.MathUtils.clamp(pointer.x * 5.5, -8, 11);
+    const ty = THREE.MathUtils.clamp(-pointer.y * 3.0 + 0.7, -1.0, 3.4);
+    // no reacquisition while a gust is live: a click releases the resting
+    // leaf into the wind, and without this guard the same frame would
+    // recapture it before the gust could ever move it
+    if (s.idx < 0 && eligible && stillFor > 5000 && now - pointer.gustAt > 4500) {
+      // choose the nearest leaf that is mid-fall and near the field's front
+      let best = -1;
+      let bestDist = Infinity;
+      for (let i = 0; i < leaves.length; i++) {
+        const l = leaves[i];
+        if (l.y < -1.1 || l.y > 3.6 || l.z < -2.5) continue;
+        const dist = Math.hypot(l.x - tx, l.y - ty);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = i;
+        }
+      }
+      if (best >= 0) {
+        s.idx = best;
+        s.gustAt = pointer.gustAt;
+        s.resting = false;
+      }
+    }
+
     const m = mesh.current;
     for (let i = 0; i < leaves.length; i++) {
       const l = leaves[i];
-      // the gust radiates from where the visitor touched — each leaf feels
-      // the wind only when the front reaches its position
-      const gust = live ? gustAtX(l.x) * 3.4 : 0;
-      const wind = baseWind + gust;
-      l.y -= l.speed * d * (1 + gust * 0.12);
-      l.x += wind * d + Math.sin(t * 1.3 + l.phase) * 0.4 * d;
-      l.y += Math.sin(t * 2.1 + l.phase) * 0.14 * d;
-      const spin = d * (1 + gust * 0.4);
-      l.rx += l.sx * spin;
-      l.ry += l.sy * spin;
-      l.rz += l.sz * spin;
-      if (l.y < -1.45 || l.x > 13) spawnLeaf(l, false);
+      if (i === s.idx) {
+        // the summoned leaf: drift toward the cursor at its OWN fall speed
+        // (a homing dart would read as a speed change — forbidden)
+        const dx = tx - l.x;
+        const dy = ty - l.y;
+        const dist = Math.hypot(dx, dy);
+        if (s.resting || dist < 0.15) {
+          if (!s.resting) {
+            s.resting = true;
+            s.restRz = l.rz;
+          }
+          // at rest on the still cursor: a gentle rock, nothing more
+          l.rz = s.restRz + Math.sin(t * 1.4) * 0.15;
+        } else {
+          const step = Math.min(l.speed * d, dist);
+          l.x += (dx / dist) * step;
+          l.y += (dy / dist) * step;
+          // tumble eases off as it approaches, like a landing
+          const calm = THREE.MathUtils.clamp(dist / 1.2, 0.15, 0.5);
+          l.rx += l.sx * d * calm;
+          l.ry += l.sy * d * calm;
+          l.rz += l.sz * d * calm;
+        }
+      } else {
+        // the gust radiates from where the visitor touched — each leaf feels
+        // the wind only when the front reaches its position
+        const gust = live ? gustAtX(l.x) * 3.4 : 0;
+        const wind = baseWind + gust;
+        l.y -= l.speed * d * (1 + gust * 0.12);
+        l.x += wind * d + Math.sin(t * 1.3 + l.phase) * 0.4 * d;
+        l.y += Math.sin(t * 2.1 + l.phase) * 0.14 * d;
+        const spin = d * (1 + gust * 0.4);
+        l.rx += l.sx * spin;
+        l.ry += l.sy * spin;
+        l.rz += l.sz * spin;
+        if (l.y < -1.45 || l.x > 13) spawnLeaf(l, false);
+      }
 
       dummy.position.set(l.x, l.y, l.z);
       dummy.rotation.set(l.rx, l.ry, l.rz);
@@ -580,6 +875,121 @@ function Horizon() {
         <mesh key={i} position={[x, y, z]} scale={[w, h, 1.5]}>
           <sphereGeometry args={[1, 12, 8]} />
           <meshBasicMaterial color="#0f1930" />
+        </mesh>
+      ))}
+      {/* a farther, hazier range behind them — taller peaks fading into the
+          night air; kept low across the center so the moon pool stays open */}
+      {(
+        [
+          [-6, -2.0, -18.5, 10, 2.9],
+          [-14, -1.9, -18.5, 8, 2.6],
+          [3, -2.35, -18.5, 9, 1.9],
+          [12, -2.05, -18.5, 9, 2.7],
+          [19, -2.2, -18.5, 7, 2.2],
+        ] as const
+      ).map(([x, y, z, w, h], i) => (
+        <mesh key={`far-${i}`} position={[x, y, z]} scale={[w, h, 1.5]}>
+          <sphereGeometry args={[1, 12, 8]} />
+          <meshBasicMaterial color="#15223c" />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/* ------------------------------- distant birds ------------------------------ */
+
+/** Loose V of wild geese trailing the leader — an autumn-moon motif. */
+const FLOCK_OFFSETS: [number, number][] = [
+  [0, 0],
+  [-0.6, -0.22],
+  [-1.15, -0.42],
+  [-0.55, 0.2],
+  [-1.08, 0.38],
+];
+
+/**
+ * Once in a long while, a far flock crosses the high sky — silhouette-thin,
+ * seconds long, gone. Scheduled like the shooting star so the sky stays
+ * quiet; skipped entirely under reduced motion. Preview with ?birds=1.
+ */
+function BirdFlock() {
+  const group = useRef<THREE.Group>(null!);
+  const birds = useRef<THREE.Mesh[]>([]);
+
+  // a thin chevron — two swept wings meeting at the body
+  const geometry = useMemo(() => {
+    const s = new THREE.Shape();
+    s.moveTo(-0.5, 0.2);
+    s.lineTo(0, 0);
+    s.lineTo(0.5, 0.2);
+    s.lineTo(0.5, 0.13);
+    s.lineTo(0, -0.05);
+    s.lineTo(-0.5, 0.13);
+    s.closePath();
+    return new THREE.ShapeGeometry(s, 2);
+  }, []);
+
+  useFrame((state) => {
+    if (!pointer.heroVisible) return;
+    const t = state.clock.elapsedTime;
+    const g = group.current;
+
+    // schedule: ~72s cycles, some skipped — a patient visitor sees one or
+    // two crossings, never a sky full of traffic; ?birds=1 keeps them coming
+    const period = 72;
+    const crossTime = 26;
+    let p = -1;
+    let cycle = 0;
+    if (pointer.birdsForce) {
+      p = (t % 30) / 30;
+      cycle = Math.floor(t / 30);
+    } else if (pointer.motion === 1) {
+      cycle = Math.floor(t / period);
+      // the first crossing is guaranteed, ~7s in — every visitor who lingers
+      // meets the flock once; after that, they return to being a rarity
+      if (cycle === 0 || sceneHash(cycle + 31.7) > 0.45) {
+        const start =
+          cycle === 0
+            ? 7
+            : cycle * period + 4 + sceneHash(cycle + 8.9) * (period - crossTime - 8);
+        p = (t - start) / crossTime;
+      }
+    }
+    if (p <= 0 || p >= 1) {
+      g.visible = false;
+      return;
+    }
+    g.visible = true;
+
+    // alternate crossings fly the other way; a slow arc with a gentle undulation
+    const dir = sceneHash(cycle + 2.4) > 0.5 ? 1 : -1;
+    const x = dir * (-24 + p * 48);
+    const y = 3.1 + Math.sin(p * Math.PI) * 0.9 + Math.sin(t * 0.45) * 0.12;
+    g.position.set(x, y, -15);
+    g.scale.x = dir;
+
+    birds.current.forEach((b, i) => {
+      if (!b) return;
+      // wingbeats: tips rise and fall — a shape change, no path speed change
+      b.scale.y = 0.45 + Math.abs(Math.sin(t * 4.6 + i * 1.9)) * 0.75;
+      b.position.y = FLOCK_OFFSETS[i][1] + Math.sin(t * 0.9 + i * 2.2) * 0.05;
+    });
+  });
+
+  return (
+    <group ref={group} visible={false}>
+      {FLOCK_OFFSETS.map(([ox, oy], i) => (
+        <mesh
+          key={i}
+          ref={(m) => {
+            if (m) birds.current[i] = m;
+          }}
+          position={[ox, oy, 0]}
+          scale={[0.34, 0.34, 0.34]}
+          geometry={geometry}
+        >
+          <meshBasicMaterial color="#0a1019" side={THREE.DoubleSide} fog={false} />
         </mesh>
       ))}
     </group>
@@ -832,7 +1242,7 @@ function ProceduralSamurai() {
 
 /* --------------------------- drop-in model support ------------------------- */
 
-const MODEL_URL = "/models/samurai.glb";
+export const MODEL_URL = "/models/samurai.glb";
 
 /** A corrupt or incompatible GLB must never take down the scene. */
 class ModelBoundary extends Component<
@@ -919,6 +1329,60 @@ function ModelSamurai() {
   );
 }
 
+function sceneHash(n: number) {
+  const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+/**
+ * Once in a long while, moonlight catches the katana — one quiet glint on
+ * roughly the shooting star's cadence, offset so the two never share a
+ * moment. Rewards the visitor who lingers; costs nothing to those who don't.
+ * Preview with ?glint=1 (continuous pulse for placement tuning).
+ */
+function KatanaGlint({ position }: { position: [number, number, number] }) {
+  const tex = useMemo(makeRadialTexture, []);
+  const mat = useRef<THREE.SpriteMaterial>(null!);
+  const sprite = useRef<THREE.Sprite>(null!);
+
+  useFrame((state) => {
+    if (!pointer.heroVisible) return;
+    const t = state.clock.elapsedTime;
+    let s = 0;
+    if (pointer.glintForce) {
+      s = 0.8 + 0.2 * Math.sin(t * 2); // held on for placement tuning
+    } else if (pointer.motion === 1) {
+      // ~47s cycles, half skipped — a rarity, not a beacon
+      const period = 47;
+      const cycle = Math.floor(t / period);
+      if (sceneHash(cycle + 17.3) > 0.5) {
+        const start = cycle * period + 6 + sceneHash(cycle + 4.2) * (period - 12);
+        const p = (t - start) / 1.4;
+        if (p > 0 && p < 1) s = Math.sin(p * Math.PI) ** 2;
+      }
+    }
+    // fully hidden ~97% of the time — drop out of the render list entirely
+    sprite.current.visible = s > 0;
+    if (!sprite.current.visible) return;
+    mat.current.opacity = s * 0.85;
+    sprite.current.scale.setScalar(0.001 + s * 0.17);
+  });
+
+  return (
+    <sprite ref={sprite} position={position} scale={0.001}>
+      <spriteMaterial
+        ref={mat}
+        map={tex}
+        color="#dbe8ff"
+        transparent
+        opacity={0}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </sprite>
+  );
+}
+
 /** Prefers the drop-in GLB when it exists; the procedural figure otherwise. */
 function Samurai() {
   const [hasModel, setHasModel] = useState(false);
@@ -929,11 +1393,22 @@ function Samurai() {
       .catch(() => setHasModel(false));
   }, []);
 
-  if (!hasModel) return <ProceduralSamurai />;
+  // the glint rides each figure's own blade line (tuned via ?glint=1) — the
+  // GLB glint mounts inside the Suspense so it never floats over the
+  // procedural fallback's robe while the model loads
+  const proceduralFigure = (
+    <>
+      <ProceduralSamurai />
+      <KatanaGlint position={[1.65, -0.26, 0.6]} />
+    </>
+  );
+
+  if (!hasModel) return proceduralFigure;
   return (
-    <ModelBoundary fallback={<ProceduralSamurai />}>
-      <Suspense fallback={<ProceduralSamurai />}>
+    <ModelBoundary fallback={proceduralFigure}>
+      <Suspense fallback={proceduralFigure}>
         <ModelSamurai />
+        <KatanaGlint position={[1.95, -0.68, 0.62]} />
       </Suspense>
     </ModelBoundary>
   );
@@ -982,6 +1457,16 @@ export default function AutumnScene() {
       <Sky />
       <Ground />
       <Horizon />
+      {/* far company for the lone maple — depth, not competition */}
+      <DistantTree position={[8.6, -1.25, -9]} scale={0.55} dim={0.55} swayPhase={1.7} />
+      <DistantTree position={[-9.8, -1.3, -12]} scale={0.45} dim={0.7} swayPhase={3.9} />
+      <DistantTree position={[14, -1.3, -13.5]} scale={0.38} dim={0.78} swayPhase={2.8} />
+      <BirdFlock />
+      {/* the field itself lives: fallen leaves and low shrubs among the grass */}
+      <LeafLitter />
+      <Shrub position={[-7.6, -1.22, -1.6]} r={0.75} dim={0.5} />
+      <Shrub position={[5.8, -1.22, -4.6]} r={0.6} dim={0.6} />
+      <Shrub position={[10.5, -1.22, -2.5]} r={0.85} dim={0.55} />
       <Grass />
       <MapleTree />
       <FallingLeaves />

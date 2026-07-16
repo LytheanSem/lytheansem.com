@@ -3,7 +3,13 @@
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { useEmblem, EMBLEM } from "./Emblem";
+import { useEmblem, EMBLEM, pulseStrength } from "./Emblem";
+
+/*
+ * Tap pulses — every emblem answers a tap (or Enter) with a one-shot gesture
+ * in its own voice. Same envelope grammar as the hero's wind gust: additive
+ * on top of the idle animation, never a change to its tempo.
+ */
 
 /* Shared material factories — dark lacquer bodies, momiji accents. */
 function useLacquer() {
@@ -55,13 +61,18 @@ export function ShelfEmblem() {
   useFrame((state) => {
     if (!ctl.visible) return;
     const h = ctl.hover;
-    accent.emissiveIntensity = 0.3 + h * 1.4;
+    const e = pulseStrength(ctl); // tap: the shelf takes a breath — stock lifts and settles
+    accent.emissiveIntensity = 0.3 + h * 1.4 + e * 1.2;
     refs.current.forEach((m, i) => {
       if (!m) return;
       const b = boxes[i];
-      const spread = 1 + h * 0.45;
-      m.position.set(b.home.x * spread, b.home.y * spread + h * 0.05, b.home.z * spread);
-      m.rotation.y = h * Math.sin(i * 1.7 + state.clock.elapsedTime * 0.6) * 0.3;
+      const spread = 1 + h * 0.45 + e * 0.3;
+      m.position.set(
+        b.home.x * spread,
+        b.home.y * spread + h * 0.05 + e * 0.07 * (1 + Math.sin(i * 0.9)),
+        b.home.z * spread
+      );
+      m.rotation.y = (h + e) * Math.sin(i * 1.7 + state.clock.elapsedTime * 0.6) * 0.3;
     });
   });
 
@@ -103,6 +114,19 @@ export function RippleEmblem() {
     []
   );
   const drop = useRef<THREE.Mesh>(null!);
+  const pulseRing = useRef<THREE.Mesh>(null!);
+  const pulseMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: EMBLEM.accentHot,
+        emissive: EMBLEM.accent,
+        emissiveIntensity: 2,
+        transparent: true,
+        opacity: 0,
+        roughness: 0.5,
+      }),
+    []
+  );
   const phase = useRef(0);
 
   useFrame((state, dt) => {
@@ -119,8 +143,17 @@ export function RippleEmblem() {
       mats[i].opacity = (1 - p) * (0.45 + h * 0.45);
       mats[i].emissiveIntensity = 0.4 + h * 1.2;
     });
+    // tap: one extra bright ring — a fifth drop, spreading once and gone
+    const pp = (performance.now() - ctl.pulseAt) / 1400;
+    if (pp > 0 && pp < 1) {
+      const r = 0.2 + pp * 1.35;
+      pulseRing.current.scale.set(r, r, r);
+      pulseMat.opacity = (1 - pp) * 0.9;
+    } else {
+      pulseMat.opacity = 0;
+    }
     drop.current.position.y = 0.25 + Math.abs(Math.sin(t * 1.2)) * (0.3 + h * 0.25);
-    accent.emissiveIntensity = 0.4 + h * 1.5;
+    accent.emissiveIntensity = 0.4 + h * 1.5 + pulseStrength(ctl) * 1.2;
   });
 
   return (
@@ -137,6 +170,9 @@ export function RippleEmblem() {
           <torusGeometry args={[1, 0.02, 10, 64]} />
         </mesh>
       ))}
+      <mesh ref={pulseRing} rotation-x={-Math.PI / 2} position={[0, 0.01, 0]} material={pulseMat}>
+        <torusGeometry args={[1, 0.03, 10, 64]} />
+      </mesh>
       <mesh ref={drop} position={[0, 0.4, 0]} material={accent}>
         <sphereGeometry args={[0.14, 20, 16]} />
       </mesh>
@@ -185,16 +221,20 @@ export function CipherEmblem() {
   useFrame(() => {
     if (!ctl.visible) return;
     const h = ctl.hover;
-    accent.emissiveIntensity = 0.3 + h * 1.6;
+    // tap: full encrypt/decrypt cycle — the cube bursts apart and reassembles.
+    // Additive over hover (mouse users are hovering when they click), clamped
+    // so a hovered tap overshoots the scatter rather than disappearing into it
+    const k = Math.min(1.35, h + pulseStrength(ctl) * 0.8);
+    accent.emissiveIntensity = 0.3 + k * 1.6;
     refs.current.forEach((m, i) => {
       if (!m) return;
       const v = voxels[i];
       m.position.set(
-        v.home.x + v.scatter.x * h,
-        v.home.y + v.scatter.y * h,
-        v.home.z + v.scatter.z * h
+        v.home.x + v.scatter.x * k,
+        v.home.y + v.scatter.y * k,
+        v.home.z + v.scatter.z * k
       );
-      m.rotation.set(v.spin * h, v.spin * h * 0.7, 0);
+      m.rotation.set(v.spin * k, v.spin * k * 0.7, 0);
     });
   });
 
@@ -234,12 +274,17 @@ export function BarsEmblem() {
     if (!ctl.visible) return;
     const t = state.clock.elapsedTime;
     const h = ctl.hover;
-    accent.emissiveIntensity = 0.3 + h * 1.5;
+    const e = pulseStrength(ctl);
+    accent.emissiveIntensity = 0.3 + h * 1.5 + e * 1.2;
     refs.current.forEach((m, i) => {
       if (!m) return;
       const idle = 1 + Math.sin(t * 1.1 + i * 0.9) * 0.03;
       const excited = 1 + Math.max(0, Math.sin(t * 2.6 - i * 0.7)) * 0.35 * h;
-      m.scale.y = heights[i] * idle * excited;
+      // tap: a good day at the ledger — one surge sweeps left to right, once:
+      // each bar rides only the first half-period of its wave, no echoes
+      const ph = (performance.now() - ctl.pulseAt) / 300 - i * 0.55;
+      const crest = ph > 0 && ph < Math.PI ? e * Math.sin(ph) : 0;
+      m.scale.y = heights[i] * idle * excited * (1 + crest * 0.45);
     });
   });
 
@@ -274,10 +319,12 @@ export function DiscEmblem() {
     if (!ctl.visible) return;
     const d = Math.min(dt, 0.05);
     const h = ctl.hover;
+    const e = pulseStrength(ctl); // tap: the needle drops — one hard beat, a breath of scale
     // constant turntable tempo — hover speaks only through the beat's glow
     disc.current.rotation.y += 0.55 * d;
     const beat = 0.4 + (Math.sin(state.clock.elapsedTime * 4.2) * 0.5 + 0.5) * 1.5 * h;
-    accent.emissiveIntensity = beat;
+    accent.emissiveIntensity = beat + e * 1.8;
+    disc.current.scale.setScalar(1 + e * 0.045);
   });
 
   return (
@@ -335,7 +382,8 @@ export function BowlEmblem() {
     if (!ctl.visible) return;
     const t = state.clock.elapsedTime;
     const h = ctl.hover;
-    accent.emissiveIntensity = 0.25 + h * 1.1;
+    const e = pulseStrength(ctl); // tap: the bowl exhales — a denser breath of steam
+    accent.emissiveIntensity = 0.25 + h * 1.1 + e * 0.9;
     steam.current.forEach((m, i) => {
       if (!m) return;
       const p = (t * 0.32 + i / 4) % 1;
@@ -346,7 +394,7 @@ export function BowlEmblem() {
       );
       const s = 0.5 + p * 0.9;
       m.scale.setScalar(s);
-      steamMats[i].opacity = Math.sin(p * Math.PI) * 0.35 * h;
+      steamMats[i].opacity = Math.sin(p * Math.PI) * 0.35 * Math.min(1, h + e * 1.6);
     });
   });
 
@@ -418,11 +466,13 @@ export function StageEmblem() {
     if (!ctl.visible) return;
     const t = state.clock.elapsedTime;
     const h = ctl.hover;
-    accent.emissiveIntensity = 0.35 + h * 1.4;
+    const e = pulseStrength(ctl); // tap: the drop hits — beams flare and sweep wide
+    accent.emissiveIntensity = 0.35 + h * 1.4 + e * 1.2;
     beamPivots.current.forEach((g, i) => {
       if (!g) return;
-      g.rotation.z = Math.sin(t * 0.55 + i * 2.1) * (0.1 + h * 0.24);
-      beamMats[i].opacity = 0.06 + h * 0.3;
+      // amplitude widens on the pulse; the sweep's tempo never changes
+      g.rotation.z = Math.sin(t * 0.55 + i * 2.1) * (0.1 + h * 0.24 + e * 0.3);
+      beamMats[i].opacity = 0.06 + h * 0.3 + e * 0.35;
     });
   });
 
@@ -492,7 +542,7 @@ export function LanesEmblem() {
     const h = ctl.hover;
     // constant run tempo — hover ignites the runner, never the clock
     dist.current += d * 1.1;
-    accent.emissiveIntensity = 0.4 + h * 1.3;
+    accent.emissiveIntensity = 0.4 + h * 1.3 + pulseStrength(ctl) * 1.2;
 
     const L = lane.current;
     if (t > L.nextSwitch) {
@@ -501,7 +551,9 @@ export function LanesEmblem() {
     }
     L.pos = THREE.MathUtils.lerp(L.pos, L.target, 1 - Math.exp(-9 * d));
     runner.current.position.x = L.pos * 0.55;
-    runner.current.position.y = 0.28 + Math.abs(Math.sin(t * 3)) * (0.1 + h * 0.12);
+    // tap: the runner leaps — one proud jump over the stream, pace untouched
+    runner.current.position.y =
+      0.28 + Math.abs(Math.sin(t * 3)) * (0.1 + h * 0.12) + pulseStrength(ctl) * 0.4;
     runner.current.rotation.x = -0.25 * (dist.current % (Math.PI * 2));
 
     obstacles.current.forEach((m, i) => {

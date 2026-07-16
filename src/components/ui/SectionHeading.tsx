@@ -7,7 +7,7 @@ export default function SectionHeading({ en, sub }: { en: string; sub?: string }
       <div className="flex items-end gap-5">
         <LeafMark className="h-12 -translate-y-1 rotate-[24deg] text-momiji-500 md:h-14" />
         <div>
-          <h2 className="font-display text-3xl font-bold tracking-wide text-paper md:text-5xl">
+          <h2 className="font-display text-4xl font-bold tracking-wide text-paper md:text-6xl">
             {en}
           </h2>
           {sub && (

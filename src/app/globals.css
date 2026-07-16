@@ -42,6 +42,9 @@ body {
   color: var(--color-paper);
   font-family: var(--font-body);
   overflow-x: clip;
+  /* neither display nor body family ships an italic/bold-beyond-loaded cut —
+     never let the browser synthesize a sheared fake */
+  font-synthesis: none;
 }
 
 ::selection {
@@ -127,6 +130,100 @@ body {
   transform: none;
 }
 
+/* the wind hint's leaf tumbles once when the visitor first stirs the wind.
+   Angles are RELATIVE: Tailwind's rotate-[70deg] emits the independent
+   `rotate` property, which COMPOSES with this transform — absolute angles
+   here would double-rotate and snap at both ends */
+@keyframes leaf-tumble {
+  0% {
+    transform: rotate(0deg) translateY(0);
+  }
+  55% {
+    transform: rotate(230deg) translateY(3px);
+  }
+  100% {
+    transform: rotate(360deg) translateY(0);
+  }
+}
+.leaf-tumble {
+  animation: leaf-tumble 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* a gust-torn leaf tumbling down to rest at the hero's foot */
+@keyframes leaf-settle {
+  0% {
+    transform: translate(0, var(--fall, -32vh)) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  38% {
+    transform: translate(var(--sway-a, 18px), calc(var(--fall, -32vh) * 0.55))
+      rotate(calc(var(--tumble, 640deg) * 0.4));
+  }
+  72% {
+    transform: translate(var(--sway-b, -12px), calc(var(--fall, -32vh) * 0.16))
+      rotate(calc(var(--tumble, 640deg) * 0.78));
+  }
+  100% {
+    transform: translate(0, 0) rotate(var(--tumble, 640deg));
+    opacity: 1;
+  }
+}
+.leaf-settle {
+  animation: leaf-settle var(--dur, 2.6s) cubic-bezier(0.3, 0.55, 0.45, 0.98) both;
+}
+
+/* the one lost leaf drifting down the 404 */
+@keyframes leaf-lost {
+  0% {
+    transform: translate(0, -12vh) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.85;
+  }
+  32% {
+    transform: translate(3vw, 24vh) rotate(130deg);
+  }
+  58% {
+    transform: translate(-2vw, 52vh) rotate(215deg);
+  }
+  86% {
+    transform: translate(2vw, 82vh) rotate(315deg);
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(-1vw, 100vh) rotate(380deg);
+    opacity: 0;
+  }
+}
+.leaf-lost {
+  opacity: 0;
+  animation: leaf-lost 16s linear 1.2s infinite;
+}
+
+/* the incense ember at the tip of the reading-progress hairline */
+@keyframes ember-flicker {
+  0%,
+  100% {
+    opacity: 0.9;
+  }
+  42% {
+    opacity: 1;
+  }
+  61% {
+    opacity: 0.68;
+  }
+  78% {
+    opacity: 0.95;
+  }
+}
+.ember-flicker {
+  animation: ember-flicker 1.7s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -139,6 +236,15 @@ body {
   .rise {
     animation: none;
     opacity: 1;
+  }
+  .leaf-tumble,
+  .leaf-settle,
+  .ember-flicker {
+    animation: none;
+  }
+  .leaf-lost {
+    animation: none;
+    opacity: 0;
   }
 }
 

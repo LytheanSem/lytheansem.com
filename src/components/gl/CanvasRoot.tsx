@@ -54,13 +54,32 @@ export default function CanvasRoot({ children }: { children: React.ReactNode }) 
     };
     applyMotion();
     media.addEventListener("change", applyMotion);
+    // still-cursor tracking is desktop-only: on touch, the "cursor" freezes at
+    // the last tap and a leaf homing to an invisible point reads as a bug
+    const finePointer = window.matchMedia("(pointer: fine)").matches;
+    const stillAnchor = { x: -1e4, y: -1e4 };
     const onMove = (e: PointerEvent) => {
       pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
       pointer.y = (e.clientY / window.innerHeight) * 2 - 1;
+      if (!finePointer) return;
+      // a wobble under 12px doesn't count as movement — hands aren't tripods
+      if (Math.hypot(e.clientX - stillAnchor.x, e.clientY - stillAnchor.y) > 12) {
+        stillAnchor.x = e.clientX;
+        stillAnchor.y = e.clientY;
+        pointer.stillSince = performance.now();
+        // the leaf only visits a cursor resting over the open field — never
+        // one parked on text, links, or controls
+        const el = e.target as Element | null;
+        pointer.stillEligible = !!el && !el.closest("a, button, h1, p, nav, input");
+      }
     };
     window.addEventListener("pointermove", onMove, { passive: true });
-    // preview flag for the cloud event, and a small secret: type z-e-n
-    pointer.cloudForce = window.location.search.includes("cloud");
+    // preview flags for scheduled events, and a small secret: type z-e-n
+    // (exact ?flag=1 params — substring matching would trip on UTM junk)
+    const params = new URLSearchParams(window.location.search);
+    pointer.cloudForce = params.get("cloud") === "1";
+    pointer.glintForce = params.get("glint") === "1";
+    pointer.birdsForce = params.get("birds") === "1";
     let sequence = "";
     const onKey = (e: KeyboardEvent) => {
       sequence = (sequence + e.key.toLowerCase()).slice(-3);

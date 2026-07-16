@@ -1,15 +1,63 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View } from "@react-three/drei";
 import AutumnScene from "@/components/gl/AutumnScene";
 import { useGlReady } from "@/components/gl/CanvasRoot";
-import { gustNow, pointer } from "@/components/gl/pointer";
+import { gustNow, meteorNow, pointer } from "@/components/gl/pointer";
 import { site } from "@/data/portfolio";
 import LeafMark from "@/components/ui/LeafMark";
+import LeafDrift from "./LeafDrift";
 
 /** Soft shadow lifting text off the bright canopy/moon areas behind it. */
 const lift = "[text-shadow:0_1px_14px_rgba(7,12,20,0.85)]";
+
+/**
+ * "Click to stir the wind" — but a hint should hear the wind it invites.
+ * The first gust makes its leaf tumble; after three, the visitor clearly
+ * knows, and the invitation bows out. Self-contained (document listener)
+ * so counting gusts never re-renders the hero's WebGL subtree.
+ *
+ * The entrance is transition-driven (not the `rise` animation): Chromium
+ * won't start a transition from an animation-fill value, so an animated
+ * entrance would make the later acknowledgment fades snap instead of ease.
+ */
+function WindHint() {
+  const [gusts, setGusts] = useState(0);
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => setEntered(true), 1100);
+    const onClick = (e: MouseEvent) => {
+      const t = e.target as Element | null;
+      if (!t || !t.closest("#top") || t.closest("a, button")) return;
+      setGusts((g) => Math.min(g + 1, 3));
+    };
+    document.addEventListener("click", onClick);
+    return () => {
+      clearTimeout(id);
+      document.removeEventListener("click", onClick);
+    };
+  }, []);
+
+  return (
+    <p
+      className={`absolute bottom-7 right-6 z-10 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.3em] text-paper/60 transition-[opacity,transform] duration-1000 motion-reduce:transition-none ${
+        !entered
+          ? "translate-y-6 opacity-0 motion-reduce:translate-y-0 motion-reduce:opacity-100"
+          : gusts >= 3
+            ? "pointer-events-none opacity-0"
+            : gusts > 0
+              ? "opacity-40"
+              : "opacity-100"
+      }`}
+    >
+      <LeafMark key={gusts} className={`h-3 rotate-[70deg] ${gusts > 0 ? "leaf-tumble" : ""}`} />
+      <span className="pointer-coarse:hidden">click to stir the wind</span>
+      <span className="hidden pointer-coarse:inline">tap to stir the wind</span>
+    </p>
+  );
+}
 
 export default function Hero() {
   const ready = useGlReady();
@@ -34,7 +82,12 @@ export default function Hero() {
       ref={section}
       id="top"
       className="relative h-[100svh] min-h-[620px] overflow-clip"
-      onClick={(e) => gustNow((e.clientX / window.innerWidth) * 2 - 1)}
+      onClick={(e) => {
+        // links and buttons are navigation, not weather — no gust for them,
+        // matching what WindHint and LeafDrift count as a stir of the wind
+        if ((e.target as Element).closest("a, button")) return;
+        gustNow((e.clientX / window.innerWidth) * 2 - 1);
+      }}
     >
       {/* the living scene */}
       {ready && (
@@ -76,9 +129,16 @@ export default function Hero() {
             className={`rise mt-6 max-w-md text-[15px] leading-relaxed text-ink-200 ${lift}`}
             style={{ animationDelay: "500ms" }}
           >
-            They call me <span className="text-paper">Zen</span>. I build calm, dependable
-            software for real businesses — retail systems, SaaS platforms, and encrypted
-            tools, from Phnom Penh.
+            They call me{" "}
+            {/* the name is the easter egg: tapping it summons the shooting star
+                (touch parity for the typed z-e-n trigger) — and the click still
+                bubbles to the section, so the wind stirs with it */}
+            <span className="text-paper" onClick={meteorNow}>
+              Zen
+            </span>
+            . I build calm, dependable software for real businesses — currently as the
+            sole engineer keeping a live supermarket&apos;s point of sale running, every
+            day.
           </p>
           <div
             className="rise mt-9 flex flex-wrap items-center gap-8"
@@ -100,15 +160,11 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* wind affordance */}
-      <p
-        className="rise absolute bottom-7 right-6 z-10 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.3em] text-paper/60"
-        style={{ animationDelay: "1100ms" }}
-      >
-        <LeafMark className="h-3 rotate-[70deg]" />
-        <span className="pointer-coarse:hidden">click to stir the wind</span>
-        <span className="hidden pointer-coarse:inline">tap to stir the wind</span>
-      </p>
+      {/* wind affordance — acknowledges the wind it invites */}
+      <WindHint />
+
+      {/* gust-torn leaves settling into a drift at the hero's foot */}
+      <LeafDrift />
 
       {/* blend into the ink below */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-b from-transparent to-ink-950" />

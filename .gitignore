@@ -47,3 +47,6 @@ CLAUDE.md
 AGENTS.md
 profile-*.png
 profile-*.jpeg
+
+# pristine model source (the merged copy ships from public/models)
+/assets/

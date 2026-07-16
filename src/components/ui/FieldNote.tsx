@@ -1,5 +1,6 @@
 import Link from "next/link";
 import LeafMark from "./LeafMark";
+import IgniteLeaf from "./IgniteLeaf";
 import { site } from "@/data/portfolio";
 
 export type FieldNoteData = {
@@ -37,7 +38,7 @@ export default function FieldNote({ note }: { note: FieldNoteData }) {
         <h1 className="mt-4 font-display text-4xl font-extrabold leading-tight text-paper md:text-5xl">
           {note.title}
         </h1>
-        <p className="mt-5 max-w-2xl font-display text-lg italic leading-relaxed text-momiji-300/90">
+        <p className="mt-5 max-w-2xl font-display text-lg leading-relaxed text-momiji-300/90">
           {note.deck}
         </p>
 
@@ -56,7 +57,8 @@ export default function FieldNote({ note }: { note: FieldNoteData }) {
           {note.sections.map((s) => (
             <section key={s.heading}>
               <h2 className="flex items-center gap-3 font-display text-2xl font-bold text-paper">
-                <LeafMark className="h-5 rotate-[24deg] text-momiji-500" />
+                {/* ignites as the reader passes it — a trail through the note */}
+                <IgniteLeaf className="h-5 rotate-[24deg]" />
                 {s.heading}
               </h2>
               <div className="mt-5 space-y-5">
@@ -67,7 +69,7 @@ export default function FieldNote({ note }: { note: FieldNoteData }) {
                 ))}
               </div>
               {s.pull && (
-                <blockquote className="mt-8 border-l-2 border-momiji-600 pl-6 font-display text-xl italic leading-relaxed text-paper/90">
+                <blockquote className="mt-8 border-l-2 border-momiji-600 pl-6 font-display text-xl leading-relaxed text-paper/90">
                   {s.pull}
                 </blockquote>
               )}

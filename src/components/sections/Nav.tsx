@@ -14,6 +14,7 @@ export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState<string | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
+  const emberRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let raf = 0;
@@ -24,15 +25,25 @@ export default function Nav() {
         // back near the top, no section is "current"
         if (window.scrollY < window.innerHeight * 0.4) setActive(null);
         const max = document.documentElement.scrollHeight - window.innerHeight;
+        const p = max > 0 ? window.scrollY / max : 0;
         if (barRef.current) {
-          barRef.current.style.transform = `scaleX(${max > 0 ? window.scrollY / max : 0})`;
+          barRef.current.style.transform = `scaleX(${p})`;
+        }
+        // the ember rides the tip of the hairline — same frame, never desynced
+        if (emberRef.current) {
+          const w = document.documentElement.clientWidth;
+          emberRef.current.style.transform = `translateX(${p * w - 2.5}px)`;
+          emberRef.current.style.opacity = p > 0.004 ? "" : "0";
         }
       });
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
+    // the ember's offset is in px — recompute on resize or it detaches
+    window.addEventListener("resize", onScroll);
     return () => {
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
       cancelAnimationFrame(raf);
     };
   }, []);
@@ -106,6 +117,25 @@ export default function Nav() {
         style={{ transform: "scaleX(0)" }}
         aria-hidden
       />
+      {/* the incense ember burning down as you read — rides the bar's tip.
+          The flicker animation lives on the INNER span: animated opacity
+          beats inline styles in the cascade, so the outer show/hide gate
+          must own a separate element */}
+      <div
+        ref={emberRef}
+        className="absolute bottom-[-2px] left-0 h-[5px] w-[5px] transition-opacity duration-300"
+        style={{ opacity: 0, willChange: "transform" }}
+        aria-hidden
+      >
+        <span
+          className="ember-flicker block h-full w-full rounded-full"
+          style={{
+            background:
+              "radial-gradient(circle, var(--color-momiji-300), var(--color-momiji-500) 45%, transparent 72%)",
+            boxShadow: "0 0 12px color-mix(in srgb, var(--color-momiji-400) 65%, transparent)",
+          }}
+        />
+      </div>
     </header>
   );
 }
