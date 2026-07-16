@@ -104,9 +104,9 @@ export default function Nav() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub profile (opens in a new tab)"
-            className="inline-block px-2 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-paper-dim transition-colors hover:text-momiji-300 sm:text-[11px] sm:tracking-[0.3em]"
+            className="inline-block whitespace-nowrap px-2 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-paper-dim transition-colors hover:text-momiji-300 sm:text-[11px] sm:tracking-[0.3em]"
           >
-            GitHub ↗
+            GitHub<span className="hidden sm:inline"> ↗</span>
           </a>
         </div>
       </nav>
