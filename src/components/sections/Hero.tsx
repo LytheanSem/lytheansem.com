@@ -109,10 +109,11 @@ export default function Hero() {
       <div className="absolute inset-x-0 bottom-0 z-10">
         <div className="mx-auto max-w-6xl px-6 pb-24">
           <p
-            className={`rise mb-4 font-mono text-[11px] uppercase tracking-[0.4em] text-momiji-300 ${lift}`}
+            className={`rise mb-4 font-mono text-[11px] uppercase tracking-[0.3em] text-momiji-300 sm:tracking-[0.4em] ${lift}`}
             style={{ animationDelay: "150ms" }}
           >
-            Full-Stack Engineer — {site.location}
+            {/* the location never breaks mid-name on narrow screens */}
+            Full-Stack Engineer — <span className="whitespace-nowrap">{site.location}</span>
           </p>
           <h1
             className={`rise font-display text-6xl font-extrabold leading-[0.95] tracking-tight text-paper md:text-8xl ${lift}`}

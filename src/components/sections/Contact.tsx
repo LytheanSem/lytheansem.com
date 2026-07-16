@@ -7,10 +7,10 @@ import FooterField from "@/components/gl/FooterField";
 export default function Contact() {
   return (
     <section id="contact" className="relative z-10 scroll-mt-20">
-      <div className="mx-auto max-w-6xl px-6 pt-28">
+      <div className="mx-auto max-w-6xl px-6 pt-20 sm:pt-28">
         <SectionHeading en="Let's Talk" sub="send word" />
 
-        <Reveal className="pb-28">
+        <Reveal className="pb-14 sm:pb-28">
           <p className="max-w-xl text-[15px] leading-relaxed text-ink-200">
             Have a product to build, a system to steady, or an idea that needs a calm pair of
             hands? I&apos;m open to full-time roles — remote or in Phnom Penh. My inbox is
@@ -64,7 +64,7 @@ export default function Contact() {
             </span>
             © {new Date().getFullYear()} {site.name}
           </p>
-          <div className="text-left font-mono text-[11px] tracking-[0.2em] text-ink-300 sm:text-right">
+          <div className="text-left font-mono text-[10px] tracking-[0.12em] text-ink-300 sm:text-right sm:text-[11px] sm:tracking-[0.2em]">
             <p>
               handcrafted with Next.js × Three.js — the moon above shows tonight&apos;s
               real phase

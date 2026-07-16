@@ -5,7 +5,7 @@ import SectionHeading from "@/components/ui/SectionHeading";
 export default function About() {
   return (
     <section id="about" className="relative z-10 scroll-mt-20">
-      <div className="mx-auto max-w-6xl px-6 pt-28">
+      <div className="mx-auto max-w-6xl px-6 pt-20 sm:pt-28">
         <SectionHeading en="The Way" sub="about me" />
 
         <div className="grid gap-14 lg:grid-cols-[1.2fr_1fr]">

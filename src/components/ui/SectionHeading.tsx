@@ -3,7 +3,7 @@ import LeafMark from "./LeafMark";
 
 export default function SectionHeading({ en, sub }: { en: string; sub?: string }) {
   return (
-    <Reveal className="mb-16">
+    <Reveal className="mb-12 sm:mb-16">
       <div className="flex items-end gap-5">
         <LeafMark className="h-12 -translate-y-1 rotate-[24deg] text-momiji-500 md:h-14" />
         <div>

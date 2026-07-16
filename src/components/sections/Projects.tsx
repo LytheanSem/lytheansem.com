@@ -14,7 +14,7 @@ function ProjectPanel({ project, flip }: { project: Project; flip: boolean }) {
   return (
     <article
       id={project.id}
-      className="grid scroll-mt-24 items-center gap-10 py-16 first:pt-6 md:py-24 md:first:pt-8 lg:grid-cols-2 lg:gap-16"
+      className="grid scroll-mt-24 items-center gap-10 py-12 first:pt-4 md:py-24 md:first:pt-8 lg:grid-cols-2 lg:gap-16"
     >
       {/* emblem — drag to turn, hover to ignite */}
       <Reveal className={flip ? "lg:order-2" : ""}>
@@ -152,11 +152,11 @@ function ProjectPanel({ project, flip }: { project: Project; flip: boolean }) {
 export default function Projects() {
   return (
     <section id="works" className="relative z-10 scroll-mt-20">
-      <div className="mx-auto max-w-6xl px-6 pt-28">
+      <div className="mx-auto max-w-6xl px-6 pt-20 sm:pt-28">
         <SectionHeading en="Selected Works" sub="eight systems, and where each one stands" />
 
         {/* index — one line per system, for the reader in a hurry */}
-        <Reveal className="mb-14">
+        <Reveal className="mb-10 sm:mb-14">
           <nav aria-label="Jump to a project" className="grid gap-x-12 sm:grid-cols-2">
             {projects.map((p) => (
               <a
