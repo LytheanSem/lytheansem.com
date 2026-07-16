@@ -14,7 +14,9 @@
 // Usage: node scripts/merge-samurai.mjs
 
 import { NodeIO } from "@gltf-transform/core";
-import { dedup, flatten, join, prune, weld } from "@gltf-transform/functions";
+import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
+import { dedup, flatten, join, meshopt, prune, weld } from "@gltf-transform/functions";
+import { MeshoptEncoder } from "meshoptimizer";
 import { copyFileSync, existsSync, mkdirSync, statSync } from "node:fs";
 
 const SRC = "assets/samurai-src.glb";
@@ -26,7 +28,9 @@ if (!existsSync(SRC)) {
   console.log(`pristine copy saved: ${OUT} -> ${SRC}`);
 }
 
-const io = new NodeIO();
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
+  "meshopt.encoder": MeshoptEncoder,
+});
 const document = await io.read(SRC);
 const root = document.getRoot();
 
@@ -38,7 +42,17 @@ for (const mesh of root.listMeshes()) {
   }
 }
 
-await document.transform(dedup(), prune(), flatten(), join(), weld());
+// merge to one draw call, then meshopt-compress the wire size (drei's
+// useGLTF wires the decoder by default, so the runtime needs no changes)
+await MeshoptEncoder.ready;
+await document.transform(
+  dedup(),
+  prune(),
+  flatten(),
+  join(),
+  weld(),
+  meshopt({ encoder: MeshoptEncoder })
+);
 
 await io.write(OUT, document);
 

@@ -1244,6 +1244,12 @@ function ProceduralSamurai() {
 
 export const MODEL_URL = "/models/samurai.glb";
 
+// start fetching the figure the moment this bundle evaluates — by the time
+// the HEAD check passes and Suspense mounts, the download is already in
+// flight (or done), so the procedural stand-in barely gets a frame.
+// Guarded: client components are also evaluated during prerender.
+if (typeof window !== "undefined") useGLTF.preload(MODEL_URL);
+
 /** A corrupt or incompatible GLB must never take down the scene. */
 class ModelBoundary extends Component<
   { fallback: ReactNode; children: ReactNode },
