@@ -6,7 +6,7 @@ export const vinmartNote: FieldNoteData = {
   title: "Eight weeks to rebuild a supermarket",
   deck: "What happens when the dev team leaves, the tills can't stop, and you're the one person left holding a live point-of-sale system.",
   meta: [
-    { label: "Role", value: "Sole engineer — inherited, stabilized, rebuilt" },
+    { label: "Role", value: "Sole engineer at handover — inherited, stabilized, rebuilt" },
     { label: "Timeline", value: "Handover May 2026 · rebuild in 8 weeks" },
     { label: "Scale", value: "53 tables · 130 API routes · 424 test files" },
     { label: "Status", value: "Legacy live & evolving · rebuild awaiting cutover" },

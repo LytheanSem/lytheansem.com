@@ -137,9 +137,9 @@ export default function Hero() {
             <span className="text-paper" onClick={meteorNow}>
               Zen
             </span>
-            . I build calm, dependable software for real businesses — currently as the
-            sole engineer keeping a live supermarket&apos;s point of sale running, every
-            day.
+            . I build calm, dependable software for real businesses — currently the
+            senior engineer keeping a live supermarket&apos;s point of sale running,
+            every day.
           </p>
           <div
             className="rise mt-9 flex flex-wrap items-center gap-8"

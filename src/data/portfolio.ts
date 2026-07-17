@@ -22,9 +22,9 @@ export const projects: Project[] = [
     category: "Retail Suite — In Production",
     tagline: "The software that runs a real supermarket, every day.",
     description:
-      "The retail suite behind VinMart, a supermarket in Phnom Penh — point of sale, barcode inventory, purchasing, and reporting. When the original team moved on, I became its sole engineer: keeping the live system shipping daily, and building its complete next-generation replacement from the ground up in parallel.",
+      "The retail suite behind VinMart, a supermarket in Phnom Penh — point of sale, barcode inventory, purchasing, and reporting. When the original team moved on, I became its sole engineer: I kept the live system shipping daily and built its complete next-generation replacement from the ground up, in parallel. Today I'm the senior engineer on the small team that has grown around it.",
     highlights: [
-      "Sole engineer for a live multi-branch POS",
+      "Inherited a live multi-branch POS alone — now its senior engineer on a small team",
       "Khmer-first bilingual, down to thermal-printer receipts",
       "Legacy data migration reconciled to the cent",
       "Offline-first rebuild, staged for cutover — a sale is never silently dropped",
