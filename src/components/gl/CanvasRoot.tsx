@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { preload } from "react-dom";
 import { Canvas } from "@react-three/fiber";
 import { View } from "@react-three/drei";
 import { pointer, meteorNow } from "./pointer";
@@ -45,6 +46,13 @@ function webglAvailable() {
 export default function CanvasRoot({ children }: { children: React.ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null!);
   const [ready, setReady] = useState(false);
+
+  // hoisted into the document <head> during server rendering: the browser
+  // starts downloading the samurai the moment it parses the HTML, long
+  // before any JavaScript arrives. crossOrigin makes the hint's request
+  // mode match the loader's fetch() — without it the preload is discarded
+  // and the model downloads twice
+  preload("/models/samurai.glb", { as: "fetch", crossOrigin: "anonymous" });
 
   useEffect(() => {
     setReady(webglAvailable());

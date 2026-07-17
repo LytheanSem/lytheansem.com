@@ -1278,7 +1278,13 @@ function ModelSamurai() {
   const group = useRef<THREE.Group>(null!);
   const { scene: model, animations } = useGLTF(MODEL_URL);
   const { actions, names } = useAnimations(animations, group);
-  const ink = useMemo(() => new THREE.MeshBasicMaterial({ color: "#0a0f16" }), []);
+  // starts invisible and materializes on first frame — there is no loading
+  // stand-in to swap from, so the figure fades in like mist parting
+  const ink = useMemo(
+    () => new THREE.MeshBasicMaterial({ color: "#0a0f16", transparent: true, opacity: 0 }),
+    []
+  );
+  const born = useRef(-1);
 
   useMemo(() => {
     model.traverse((o) => {
@@ -1310,6 +1316,17 @@ function ModelSamurai() {
     if (!pointer.heroVisible) return;
     const t = state.clock.elapsedTime;
     const m = pointer.motion;
+    // materialize over ~0.8s the first time he's seen, then go opaque
+    // (transparent silhouettes can sort oddly against the leaves)
+    if (born.current < 0) born.current = t;
+    const k = THREE.MathUtils.clamp((t - born.current) / 0.8, 0, 1);
+    if (ink.transparent) {
+      ink.opacity = k;
+      if (k >= 1) {
+        ink.transparent = false;
+        ink.needsUpdate = true;
+      }
+    }
     // the same quiet life as the rest of the field: breath, and a lean
     // when the traveling gust reaches him (x = 1.7)
     const gust = gustAtX(1.7);
@@ -1389,19 +1406,24 @@ function KatanaGlint({ position }: { position: [number, number, number] }) {
   );
 }
 
-/** Prefers the drop-in GLB when it exists; the procedural figure otherwise. */
+/**
+ * The GLB ships with the site, so it is assumed: while it loads the field
+ * simply waits (no stand-in — a swap between two silhouettes reads as a
+ * glitch), and the figure materializes when ready. The procedural wanderer
+ * appears only if loading actually fails: file missing or unparseable.
+ */
 function Samurai() {
-  const [hasModel, setHasModel] = useState(false);
+  const [missing, setMissing] = useState(false);
 
   useEffect(() => {
     fetch(MODEL_URL, { method: "HEAD" })
-      .then((r) => setHasModel(r.ok))
-      .catch(() => setHasModel(false));
+      .then((r) => {
+        if (!r.ok) setMissing(true);
+      })
+      .catch(() => setMissing(true));
   }, []);
 
-  // the glint rides each figure's own blade line (tuned via ?glint=1) — the
-  // GLB glint mounts inside the Suspense so it never floats over the
-  // procedural fallback's robe while the model loads
+  // the glint rides each figure's own blade line (tuned via ?glint=1)
   const proceduralFigure = (
     <>
       <ProceduralSamurai />
@@ -1409,10 +1431,10 @@ function Samurai() {
     </>
   );
 
-  if (!hasModel) return proceduralFigure;
+  if (missing) return proceduralFigure;
   return (
     <ModelBoundary fallback={proceduralFigure}>
-      <Suspense fallback={proceduralFigure}>
+      <Suspense fallback={null}>
         <ModelSamurai />
         <KatanaGlint position={[1.95, -0.68, 0.62]} />
       </Suspense>
