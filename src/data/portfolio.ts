@@ -230,5 +230,6 @@ export const site = {
   email: "hi@lytheansem.com",
   github: "https://github.com/LytheanSem",
   linkedin: "https://www.linkedin.com/in/lytheansem",
+  resume: "/resume.pdf",
   domain: "lytheansem.com",
 };

@@ -23,7 +23,21 @@ export default function Contact() {
             {site.email}
             <span className="mt-3 block h-px w-0 bg-momiji-500 transition-all duration-500 group-hover:w-full" />
           </a>
-          <div className="mt-12 flex flex-wrap items-center gap-x-8 gap-y-3 font-mono text-[11px] uppercase tracking-[0.3em] text-ink-300">
+          <div className="mt-12 flex flex-wrap items-center gap-x-8 gap-y-4 font-mono text-[11px] uppercase tracking-[0.3em] text-ink-300">
+            {/* the paper he actually hands you — sealed with the leaf */}
+            <a
+              href={site.resume}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Resume (PDF, opens in a new tab)"
+              className="group/cv inline-flex items-center gap-3 border border-momiji-600/60 px-5 py-2.5 text-momiji-300 transition-all hover:border-momiji-400 hover:bg-momiji-600/10"
+            >
+              <LeafMark className="h-3 rotate-[24deg] transition-transform duration-500 group-hover/cv:rotate-[80deg]" />
+              Resume
+              <span className="inline-block transition-transform group-hover/cv:translate-y-0.5">
+                ↓
+              </span>
+            </a>
             <a
               href={site.github}
               target="_blank"

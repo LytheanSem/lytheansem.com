@@ -108,6 +108,16 @@ export default function Nav() {
           >
             GitHub<span className="hidden sm:inline"> ↗</span>
           </a>
+          {/* hidden on the cramped phone row — the Contact button carries mobile */}
+          <a
+            href={site.resume}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Resume (PDF, opens in a new tab)"
+            className="hidden whitespace-nowrap px-2 py-3 font-mono text-[11px] uppercase tracking-[0.3em] text-paper-dim transition-colors hover:text-momiji-300 sm:inline-block"
+          >
+            Resume ↓
+          </a>
         </div>
       </nav>
       {/* reading progress — viewport-sized bar, transform-only animation */}
