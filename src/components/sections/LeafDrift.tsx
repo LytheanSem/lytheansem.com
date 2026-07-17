@@ -13,8 +13,13 @@ type Drift = {
   swayB: number; // px
   size: number; // px
   color: string;
+  rest: number; // px above the hero's foot — persisted so the pile reloads
+  // exactly where it settled
   leaving?: boolean; // oldest leaves fade out before removal — never pop
+  settled?: boolean; // restored from a previous visit — rendered at rest
 };
+
+const STORE_KEY = "field-drift";
 
 const LEAF_COLORS = ["#a53318", "#c2431f", "#e8622c", "#ef7a37"];
 
@@ -31,6 +36,45 @@ const LEAF_COLORS = ["#a53318", "#c2431f", "#e8622c", "#ef7a37"];
 export default function LeafDrift() {
   const [leaves, setLeaves] = useState<Drift[]>([]);
   const nextId = useRef(0);
+  // state, not a ref: the mount-commit persist run must see this render's
+  // false and skip — a ref flips synchronously and the first persist would
+  // write "[]" over the saved pile before the restore re-render lands
+  const [restored, setRestored] = useState(false);
+
+  // the wind remembers: last visit's drift is still resting at the field's
+  // foot when you return (restored after mount — never during hydration)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as Drift[];
+        if (Array.isArray(saved) && saved.length) {
+          setLeaves(
+            saved.slice(-14).map((l) => ({
+              ...l,
+              id: nextId.current++,
+              leaving: false,
+              settled: true,
+            }))
+          );
+        }
+      }
+    } catch {
+      // unreadable pocket — the field starts bare
+    }
+    setRestored(true);
+  }, []);
+
+  useEffect(() => {
+    // a pile, once made, is never legitimately empty again — refusing to
+    // write [] also closes the last sliver of the overwrite window
+    if (!restored || !leaves.length) return;
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(leaves.filter((l) => !l.leaving)));
+    } catch {
+      // storage blocked or full — the wind forgets, gracefully
+    }
+  }, [restored, leaves]);
 
   useEffect(() => {
     // decorative — skip entirely for reduced motion
@@ -43,8 +87,9 @@ export default function LeafDrift() {
       const spawned: Drift[] = [];
       for (let i = 0; i < n; i++) {
         const xPx = e.clientX + (Math.random() - 0.5) * 200;
+        const id = nextId.current++;
         spawned.push({
-          id: nextId.current++,
+          id,
           // clamp clear of the edges and the wind hint's bottom-right corner
           leftPct: Math.min(Math.max((xPx / window.innerWidth) * 100, 4), 76),
           fall: -(22 + Math.random() * 26),
@@ -54,6 +99,7 @@ export default function LeafDrift() {
           swayB: (Math.random() - 0.5) * 40,
           size: 10 + Math.random() * 7,
           color: LEAF_COLORS[Math.floor(Math.random() * LEAF_COLORS.length)],
+          rest: 8 + (id % 4) * 4,
         });
       }
       // a small drift, not a carpet — the oldest leaves fade away first
@@ -82,17 +128,22 @@ export default function LeafDrift() {
         <span
           key={l.id}
           className={`absolute transition-opacity duration-700 ${l.leaving ? "opacity-0" : ""}`}
-          style={{ left: `${l.leftPct}%`, bottom: `${8 + (l.id % 4) * 4}px` }}
+          style={{ left: `${l.leftPct}%`, bottom: `${l.rest ?? 8}px` }}
         >
           <span
-            className="leaf-settle block"
+            className={l.settled ? "block" : "leaf-settle block"}
             style={
               {
-                "--fall": `${l.fall}vh`,
-                "--dur": `${l.dur}s`,
-                "--tumble": `${l.tumble}deg`,
-                "--sway-a": `${l.swayA}px`,
-                "--sway-b": `${l.swayB}px`,
+                // restored leaves render at rest — no re-tumble on return
+                ...(l.settled
+                  ? { transform: `rotate(${l.tumble}deg)` }
+                  : {
+                      "--fall": `${l.fall}vh`,
+                      "--dur": `${l.dur}s`,
+                      "--tumble": `${l.tumble}deg`,
+                      "--sway-a": `${l.swayA}px`,
+                      "--sway-b": `${l.swayB}px`,
+                    }),
                 color: l.color,
               } as React.CSSProperties
             }

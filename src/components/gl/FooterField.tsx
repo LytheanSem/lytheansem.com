@@ -73,6 +73,8 @@ function MiniMoon() {
   const glowTex = useMemo(makeRadialTexture, []);
   const uniforms = useMemo(() => ({ uPhase: { value: lunarPhase() } }), []);
   const y = isDeepNight() ? 1.15 : 1.5;
+  // the send-off halo carries tonight's illumination too
+  const illum = useMemo(() => 0.5 - 0.5 * Math.cos(lunarPhase() * Math.PI * 2), []);
   return (
     <group position={[-3.2, y, -14]}>
       <sprite scale={4.4}>
@@ -80,7 +82,7 @@ function MiniMoon() {
           map={glowTex}
           color="#41547e"
           transparent
-          opacity={0.4}
+          opacity={0.28 + 0.24 * illum}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />

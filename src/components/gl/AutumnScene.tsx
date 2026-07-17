@@ -238,13 +238,20 @@ function Sky() {
 function Ground() {
   const glowTex = useMemo(makeRadialTexture, []);
   const moonPool = useRef<THREE.MeshBasicMaterial>(null!);
+  const emberGlow = useRef<THREE.MeshBasicMaterial>(null!);
+  // tonight's illumination, 0 = new moon, 1 = full — set once at mount:
+  // full-moon nights spill a wider, brighter pool across the field
+  const illum = useMemo(() => 0.5 - 0.5 * Math.cos(lunarPhase() * Math.PI * 2), []);
 
   useFrame((state) => {
     if (!pointer.heroVisible) return;
-    // the field reflection breathes with the halo — and fades under a cloud
+    // the field reflection breathes with the halo — and fades under a cloud;
+    // when the cloud takes the cold light, the warm embers answer
     const t = state.clock.elapsedTime;
+    const cloud = cloudCover(t);
     moonPool.current.opacity =
-      0.22 * (1 + 0.15 * Math.sin(t * 0.25)) * (1 - 0.6 * cloudCover(t));
+      (0.13 + 0.16 * illum) * (1 + 0.15 * Math.sin(t * 0.25)) * (1 - 0.6 * cloud);
+    emberGlow.current.opacity = 0.26 * (1 + 0.5 * cloud);
   });
 
   return (
@@ -257,6 +264,7 @@ function Ground() {
       <mesh rotation-x={-Math.PI / 2} position={[1.4, -1.19, 0.4]}>
         <planeGeometry args={[9, 5]} />
         <meshBasicMaterial
+          ref={emberGlow}
           map={glowTex}
           color="#b5511f"
           transparent
@@ -266,7 +274,11 @@ function Ground() {
         />
       </mesh>
       {/* faint moonlight pool on the field below the moon */}
-      <mesh rotation-x={-Math.PI / 2} position={[0.2, -1.195, -6]}>
+      <mesh
+        rotation-x={-Math.PI / 2}
+        position={[0.2, -1.195, -6]}
+        scale={[1 + illum * 0.45, 1 + illum * 0.25, 1]}
+      >
         <planeGeometry args={[14, 8]} />
         <meshBasicMaterial
           ref={moonPool}

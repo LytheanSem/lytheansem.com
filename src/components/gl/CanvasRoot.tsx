@@ -12,7 +12,10 @@ import {
 import { preload } from "react-dom";
 import { Canvas } from "@react-three/fiber";
 import { View } from "@react-three/drei";
-import { pointer, meteorNow } from "./pointer";
+import { pointer, meteorNow, cloudNow } from "./pointer";
+
+// a quiet word for the engineers who open the console (they always do)
+let greeted = false;
 
 const GlReadyContext = createContext(false);
 export const useGlReady = () => useContext(GlReadyContext);
@@ -88,16 +91,37 @@ export default function CanvasRoot({ children }: { children: React.ReactNode }) 
     pointer.cloudForce = params.get("cloud") === "1";
     pointer.glintForce = params.get("glint") === "1";
     pointer.birdsForce = params.get("birds") === "1";
+    // two summoning words: z-e-n calls a star, m-o-o-n calls the cloud
     let sequence = "";
     const onKey = (e: KeyboardEvent) => {
-      sequence = (sequence + e.key.toLowerCase()).slice(-3);
-      if (sequence === "zen") meteorNow();
+      sequence = (sequence + e.key.toLowerCase()).slice(-4);
+      if (sequence.endsWith("zen")) meteorNow();
+      else if (sequence === "moon") cloudNow();
     };
     window.addEventListener("keydown", onKey);
+    // when the visitor leaves for another tab, the field keeps living
+    const WHISPER = "the wind keeps moving — Lythean Sem";
+    const baseTitle = document.title;
+    const onVisibility = () => {
+      document.title = document.hidden ? WHISPER : baseTitle;
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    if (!greeted) {
+      greeted = true;
+      console.log(
+        "%cFall seven times — rise eight.%c\n\nHandcrafted with Next.js × Three.js — source: https://github.com/LytheanSem/lytheansem.com\nThe field listens. Try typing z-e-n.",
+        "font-family: Georgia, serif; font-size: 15px; color: #e8622c;",
+        "font-family: ui-monospace, monospace; font-size: 11px; color: #8fa2b8;"
+      );
+    }
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("keydown", onKey);
       media.removeEventListener("change", applyMotion);
+      document.removeEventListener("visibilitychange", onVisibility);
+      // restore ONLY if the whisper is showing — a blind restore would stomp
+      // the next route's title after a client-side navigation
+      if (document.title === WHISPER) document.title = baseTitle;
     };
   }, []);
 
