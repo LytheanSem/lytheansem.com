@@ -72,5 +72,8 @@ Or push this repo to GitHub and import it at vercel.com/new.
 2. In Cloudflare DNS, add the records Vercel shows you (A `76.76.21.21` for the
    apex, CNAME `cname.vercel-dns.com` for `www`) — set them to **DNS only**
    (grey cloud), so Vercel can issue SSL.
-3. Email for `hi@lytheansem.com`: Cloudflare → Email → Email Routing → forward
-   `hi@lytheansem.com` to your personal inbox (free, ~2 minutes).
+3. Email is already handled: the domain's MX records point to Proton Mail
+   (hi@ and zen@ both deliver there). Do **not** enable Cloudflare Email
+   Routing — it would try to replace the Proton MX records and break mail.
+   Only touch the A/CNAME records above; leave MX, SPF, DKIM, and DMARC as
+   they are.
