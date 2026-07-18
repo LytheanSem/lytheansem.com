@@ -21,7 +21,7 @@ function ProjectPanel({ project, flip }: { project: Project; flip: boolean }) {
         <div className="group relative">
           <EmblemView
             label={`Interactive 3D emblem for ${project.name}`}
-            autoRotate={!["ripple", "disc", "lanes"].includes(project.emblem)}
+            autoRotate={!["ripple", "disc", "lanes", "cipher"].includes(project.emblem)}
             className="aspect-square w-full max-h-[460px] border border-ink-700/60 transition-colors duration-500 group-hover:border-momiji-600/50"
           >
             <Emblem />

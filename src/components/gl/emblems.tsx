@@ -38,56 +38,111 @@ function useAccent() {
   );
 }
 
-/* 01 — VinMart · shelf of stock that comes apart in your hands */
+/* 01 — VinMart · a stocked supermarket shelf, alive at the edges */
+type ShelfProduct = {
+  home: THREE.Vector3;
+  size: [number, number, number];
+  kind: "box" | "can";
+  mat: "lacquer" | "accent" | "paper";
+  phase: number;
+};
+
 export function ShelfEmblem() {
   const ctl = useEmblem();
   const lacquer = useLacquer();
   const accent = useAccent();
+  const paper = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: "#c9bda6",
+        roughness: 0.65,
+        metalness: 0.05,
+      }),
+    []
+  );
   const refs = useRef<THREE.Mesh[]>([]);
 
-  const boxes = useMemo(() => {
-    const out: { home: THREE.Vector3; accent: boolean }[] = [];
-    for (let x = -1; x <= 1; x++)
-      for (let y = 0; y <= 2; y++)
-        for (let z = 0; z <= 1; z++) {
-          out.push({
-            home: new THREE.Vector3(x * 0.5, y * 0.5 - 0.3, z * 0.5 - 0.25),
-            accent: Math.random() < 0.22,
-          });
-        }
+  // three stocked shelves: boxes and cans of varied heights, packed left to
+  // right with small gaps — the silhouette of every supermarket aisle
+  const products = useMemo(() => {
+    const out: ShelfProduct[] = [];
+    const shelfTops = [-0.62, 0.02, 0.66];
+    let i = 0;
+    for (const top of shelfTops) {
+      let x = -0.82;
+      while (x < 0.78) {
+        const kind: ShelfProduct["kind"] = Math.random() < 0.55 ? "box" : "can";
+        const w = kind === "box" ? 0.16 + Math.random() * 0.16 : 0.12 + Math.random() * 0.04;
+        const hgt =
+          kind === "box" ? 0.2 + Math.random() * 0.22 : 0.16 + Math.random() * 0.12;
+        const roll = Math.random();
+        out.push({
+          home: new THREE.Vector3(x + w / 2, top + hgt / 2, (Math.random() - 0.5) * 0.12),
+          size: [w, hgt, 0.15 + Math.random() * 0.08],
+          kind,
+          mat: roll < 0.3 ? "accent" : roll < 0.55 ? "paper" : "lacquer",
+          phase: i++,
+        });
+        x += w + 0.04 + Math.random() * 0.05;
+      }
+    }
     return out;
   }, []);
 
   useFrame((state) => {
     if (!ctl.visible) return;
+    const t = state.clock.elapsedTime;
     const h = ctl.hover;
-    const e = pulseStrength(ctl); // tap: the shelf takes a breath — stock lifts and settles
-    accent.emissiveIntensity = 0.3 + h * 1.4 + e * 1.2;
+    const e = pulseStrength(ctl);
+    accent.emissiveIntensity = 0.3 + h * 1.3 + e * 1.1;
     refs.current.forEach((m, i) => {
       if (!m) return;
-      const b = boxes[i];
-      const spread = 1 + h * 0.45 + e * 0.3;
-      m.position.set(
-        b.home.x * spread,
-        b.home.y * spread + h * 0.05 + e * 0.07 * (1 + Math.sin(i * 0.9)),
-        b.home.z * spread
-      );
-      m.rotation.y = (h + e) * Math.sin(i * 1.7 + state.clock.elapsedTime * 0.6) * 0.3;
+      const p = products[i];
+      // tap: a restock wave hops down the aisles, shelf by shelf
+      const wavePhase = ((performance.now() - ctl.pulseAt) / 900) * 3.2 - p.home.x * 1.5 - p.home.y * 0.8;
+      const hop = e * Math.max(0, Math.sin(wavePhase));
+      // hover: the stock leans out to greet you, just slightly
+      m.position.set(p.home.x, p.home.y + hop * 0.1, p.home.z + h * 0.05);
+      m.rotation.y = (h * 0.5 + e) * Math.sin(p.phase * 1.7 + t * 0.6) * 0.16;
     });
   });
 
   return (
-    <group>
-      {boxes.map((b, i) => (
+    <group position={[0, -0.12, 0]}>
+      {/* uprights */}
+      <mesh position={[-0.96, 0.12, 0]} material={lacquer}>
+        <boxGeometry args={[0.07, 2.0, 0.44]} />
+      </mesh>
+      <mesh position={[0.96, 0.12, 0]} material={lacquer}>
+        <boxGeometry args={[0.07, 2.0, 0.44]} />
+      </mesh>
+      {/* shelf boards, each with a glowing price rail on its lip */}
+      {[-0.65, -0.01, 0.63].map((y, i) => (
+        <group key={i}>
+          <mesh position={[0, y, 0]} material={lacquer}>
+            <boxGeometry args={[1.98, 0.06, 0.44]} />
+          </mesh>
+          <mesh position={[0, y - 0.005, 0.225]} material={accent}>
+            <boxGeometry args={[1.98, 0.028, 0.012]} />
+          </mesh>
+        </group>
+      ))}
+      {/* the stock */}
+      {products.map((p, i) => (
         <mesh
           key={i}
           ref={(m) => {
             if (m) refs.current[i] = m;
           }}
-          position={b.home}
-          material={b.accent ? accent : lacquer}
+          position={p.home}
+          scale={p.kind === "can" ? [p.size[0], p.size[1], p.size[0]] : p.size}
+          material={p.mat === "accent" ? accent : p.mat === "paper" ? paper : lacquer}
         >
-          <boxGeometry args={[0.42, 0.42, 0.42]} />
+          {p.kind === "box" ? (
+            <boxGeometry args={[1, 1, 1]} />
+          ) : (
+            <cylinderGeometry args={[0.5, 0.5, 1, 14]} />
+          )}
         </mesh>
       ))}
     </group>
@@ -184,72 +239,118 @@ export function RippleEmblem() {
   );
 }
 
-/* 03 — Encrypted Images · a cube that scrambles itself */
+/* 03 — Encrypted Images · a photograph that keeps its secret */
+const PHOTO_W = 1.5;
+const PHOTO_H = 1.06;
+const PHOTO_COLS = 8;
+const PHOTO_ROWS = 6;
+
+type PhotoTile = {
+  home: THREE.Vector3;
+  photo: THREE.Color;
+  cipher: THREE.Color;
+  scatter: THREE.Vector3;
+  spin: number;
+  lag: number;
+};
+
 export function CipherEmblem() {
   const ctl = useEmblem();
-  const lacquer = useLacquer();
-  const accent = useAccent();
+  const sway = useRef<THREE.Group>(null!);
   const refs = useRef<THREE.Mesh[]>([]);
 
-  const voxels = useMemo(() => {
-    const out: {
-      home: THREE.Vector3;
-      scatter: THREE.Vector3;
-      spin: number;
-      accent: boolean;
-    }[] = [];
-    for (let x = -1; x <= 1; x++)
-      for (let y = -1; y <= 1; y++)
-        for (let z = -1; z <= 1; z++) {
-          const dir = new THREE.Vector3(
-            Math.random() - 0.5,
-            Math.random() - 0.5,
-            Math.random() - 0.5
-          )
-            .normalize()
-            .multiplyScalar(0.5 + Math.random() * 0.5);
-          out.push({
-            home: new THREE.Vector3(x * 0.36, y * 0.36, z * 0.36),
-            scatter: dir,
-            spin: (Math.random() - 0.5) * 2.4,
-            accent: Math.random() < 0.25,
-          });
-        }
+  // the picture is a tiny mosaic of this site's own night field — sky, moon,
+  // a momiji canopy, the dark ground. Each tile also carries its ciphertext
+  // face: cold noise, no image left in it.
+  const tiles = useMemo(() => {
+    const out: PhotoTile[] = [];
+    const skyLo = new THREE.Color("#31435f");
+    const skyHi = new THREE.Color("#1a2740");
+    const moon = new THREE.Color("#dde6f2");
+    const ground = new THREE.Color("#10192a");
+    const canopy = new THREE.Color("#d0592c");
+    for (let r = 0; r < PHOTO_ROWS; r++) {
+      for (let c = 0; c < PHOTO_COLS; c++) {
+        const u = (c + 0.5) / PHOTO_COLS;
+        const v = (r + 0.5) / PHOTO_ROWS;
+        let col: THREE.Color;
+        if (v < 0.3) col = ground.clone();
+        else col = skyLo.clone().lerp(skyHi, (v - 0.3) / 0.7);
+        // the moon, upper right — with a soft halo in the surrounding tiles
+        const moonDist = Math.hypot((u - 0.72) * 1.35, v - 0.7);
+        if (moonDist < 0.3) col.lerp(moon, 0.3 * (1 - moonDist / 0.3));
+        if (moonDist < 0.14) col = moon.clone();
+        // a maple canopy leaning in from the left
+        if (u < 0.3 && v > 0.28 && v < 0.62 && Math.random() < 0.85)
+          col = canopy.clone().lerp(ground, Math.random() * 0.4);
+        col.offsetHSL(0, 0, (Math.random() - 0.5) * 0.03); // mosaic grain
+        out.push({
+          home: new THREE.Vector3((u - 0.5) * PHOTO_W, (v - 0.5) * PHOTO_H + 0.07, 0.03),
+          photo: col,
+          cipher: new THREE.Color().setHSL(0.58 + Math.random() * 0.05, 0.12, 0.1 + Math.random() * 0.22),
+          scatter: new THREE.Vector3(
+            (Math.random() - 0.5) * 1.7,
+            (Math.random() - 0.5) * 1.3,
+            0.25 + Math.random() * 0.85
+          ),
+          spin: (Math.random() - 0.5) * 3.2,
+          lag: Math.random() * 0.22,
+        });
+      }
+    }
     return out;
   }, []);
 
-  useFrame(() => {
+  const mats = useMemo(
+    () => tiles.map((t) => new THREE.MeshBasicMaterial({ color: t.photo.clone(), side: THREE.DoubleSide })),
+    [tiles]
+  );
+
+  useFrame((state) => {
     if (!ctl.visible) return;
+    const t = state.clock.elapsedTime;
     const h = ctl.hover;
-    // tap: full encrypt/decrypt cycle — the cube bursts apart and reassembles.
-    // Additive over hover (mouse users are hovering when they click), clamped
-    // so a hovered tap overshoots the scatter rather than disappearing into it
-    const k = Math.min(1.35, h + pulseStrength(ctl) * 0.8);
-    accent.emissiveIntensity = 0.3 + k * 1.6;
+    const e = pulseStrength(ctl);
+    // encryption amount: hover lifts the image into a shimmer of ciphertext,
+    // a tap runs the full encrypt-and-decrypt cycle; the empty polaroid paper
+    // stays behind while the image is away
+    const k = Math.min(1.2, h * 0.5 + e);
     refs.current.forEach((m, i) => {
       if (!m) return;
-      const v = voxels[i];
+      const tl = tiles[i];
+      const kk = THREE.MathUtils.clamp(k * 1.3 - tl.lag, 0, 1);
       m.position.set(
-        v.home.x + v.scatter.x * k,
-        v.home.y + v.scatter.y * k,
-        v.home.z + v.scatter.z * k
+        tl.home.x + tl.scatter.x * kk,
+        tl.home.y + tl.scatter.y * kk,
+        tl.home.z + tl.scatter.z * kk
       );
-      m.rotation.set(v.spin * k, v.spin * k * 0.7, 0);
+      m.rotation.set(tl.spin * kk, tl.spin * kk * 0.8, tl.spin * kk * 0.3);
+      mats[i].color.copy(tl.photo).lerp(tl.cipher, kk);
     });
+    // a photograph hangs and sways — it never turns its back
+    sway.current.rotation.y = Math.sin(t * 0.4) * 0.24;
+    sway.current.rotation.x = Math.sin(t * 0.27) * 0.05;
   });
 
   return (
-    <group position={[0, 0.2, 0]}>
-      {voxels.map((v, i) => (
+    <group ref={sway} position={[0, 0.28, 0]}>
+      {/* polaroid paper: deep bottom margin, thin elsewhere */}
+      <mesh position={[0, -0.04, -0.02]}>
+        <boxGeometry args={[1.68, 1.42, 0.04]} />
+        {/* unlit: polaroid paper stays paper-pale under the warm stage light */}
+        <meshBasicMaterial color="#ddd5c2" />
+      </mesh>
+      {/* the image, tile by tile */}
+      {tiles.map((tl, i) => (
         <mesh
           key={i}
           ref={(m) => {
             if (m) refs.current[i] = m;
           }}
-          position={v.home}
-          material={v.accent ? accent : lacquer}
+          position={tl.home}
+          material={mats[i]}
         >
-          <boxGeometry args={[0.3, 0.3, 0.3]} />
+          <planeGeometry args={[(PHOTO_W / PHOTO_COLS) * 0.96, (PHOTO_H / PHOTO_ROWS) * 0.95]} />
         </mesh>
       ))}
     </group>
